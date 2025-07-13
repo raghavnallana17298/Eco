@@ -28,16 +28,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Set persistence once at the beginning
-    setPersistence(auth, browserLocalPersistence);
+    // This is a more robust way to handle auth in Next.js
+    const initializeAuth = async () => {
+      // Set persistence at the very start
+      await setPersistence(auth, browserLocalPersistence);
 
-    const handleRedirectResult = async () => {
+      // Handle the redirect result from Google sign-in
       try {
         const result = await getRedirectResult(auth);
         if (result) {
           const user = result.user;
           const userDocRef = doc(db, 'users', user.uid);
           const userDoc = await getDoc(userDocRef);
+          // If the user is new (doesn't exist in Firestore), create their profile
           if (!userDoc.exists()) {
             const newUserProfile: UserProfile = {
               uid: user.uid,
@@ -46,42 +49,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               role: 'Industrialist', // Default role for new Google sign-ins
             };
             await setDoc(userDocRef, newUserProfile);
-            setUserProfile(newUserProfile);
           }
         }
       } catch (error) {
+        // This can happen if the user closes the popup, etc.
         console.error("Error processing redirect result:", error);
       }
-    };
-    
-    handleRedirectResult();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setLoading(true);
-      if (user) {
-        setUser(user);
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data() as UserProfile);
+      // Now, set up the listener for auth state changes
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+          setUser(user);
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data() as UserProfile);
+          }
         } else {
-           // This case handles a new user who just signed up via redirect
-           // The profile might have been created during redirect handling
+          setUser(null);
+          setUserProfile(null);
         }
-      } else {
-        setUser(null);
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
+        setLoading(false);
+      });
+      
+      return unsubscribe;
+    };
 
-    return () => unsubscribe();
+    const unsubscribePromise = initializeAuth();
+
+    return () => {
+      unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+    };
   }, []);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      // Use signInWithRedirect for a more reliable flow
       await signInWithRedirect(auth, provider);
     } catch (error) {
       console.error("Error during Google sign-in redirect:", error);
@@ -171,7 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     updateUserProfile,
   };
 
-  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
