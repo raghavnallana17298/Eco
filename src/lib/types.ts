@@ -1,0 +1,44 @@
+import type { GeoPoint, Timestamp } from "firebase/firestore";
+
+export type UserRole = "Industrialist" | "Recycler" | "Transporter";
+
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  role: UserRole;
+  location?: GeoPoint;
+}
+
+export interface WasteRequest {
+  id: string;
+  industrialistId: string;
+  type: string;
+  quantity: number; // in kg
+  location: GeoPoint;
+  imageUrl?: string;
+  status: 'pending' | 'accepted' | 'in-transit' | 'completed' | 'cancelled';
+  createdAt: Timestamp;
+  acceptedByRecycler?: string;
+  transportedBy?: string;
+}
+
+export interface RecycledMaterial {
+  id: string;
+  recyclerId: string;
+  type: string;
+  quantity: number; // in kg
+  price: number; // per kg
+  imageUrl?: string;
+  createdAt: Timestamp;
+}
+
+export interface TransportJob {
+  id: string;
+  wasteRequestId: string;
+  transporterId: string;
+  status: 'pending' | 'accepted' | 'picked-up' | 'delivered';
+  pickupLocation: GeoPoint;
+  dropoffLocation: GeoPoint;
+  createdAt: Timestamp;
+}
