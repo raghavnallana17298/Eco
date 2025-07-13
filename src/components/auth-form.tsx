@@ -87,13 +87,17 @@ export function AuthForm() {
   }
   
   async function handleGoogleSignIn() {
-    setLoading(true)
+    setLoading(true);
     try {
-      await signInWithGoogle()
+      await signInWithGoogle();
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Google Sign-In Failed", description: error.message })
+      toast({
+        variant: "destructive",
+        title: "Google Sign-In Failed",
+        description: error.message,
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
