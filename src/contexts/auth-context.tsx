@@ -54,6 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     provider.setCustomParameters({
       prompt: 'select_account'
     });
+    auth.tenantId = process.env.NEXT_PUBLIC_FIREBASE_TENANT_ID || null;
     // This is a simplified flow. A real app would ask for the role
     // on a separate screen after Google sign-up if the user is new.
     try {
