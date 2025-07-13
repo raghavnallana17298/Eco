@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import type { UserProfile, UserRole } from '@/lib/types';
@@ -28,6 +28,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
+    // Set persistence to local storage
+    setPersistence(auth, browserLocalPersistence)
+      .then(() => {
+        // Handle the redirect result
+        getRedirectResult(auth)
+          .then(async (result) => {
+            if (result) {
+              const user = result.user;
+              const userDocRef = doc(db, 'users', user.uid);
+              const userDoc = await getDoc(userDocRef);
+              if (!userDoc.exists()) {
+                const newUserProfile: UserProfile = {
+                  uid: user.uid,
+                  email: user.email,
+                  displayName: user.displayName,
+                  role: 'Industrialist',
+                };
+                await setDoc(userDocRef, newUserProfile);
+                setUserProfile(newUserProfile);
+              }
+            }
+          })
+          .catch((error) => {
+            console.error("Error getting redirect result:", error);
+          })
+          .finally(() => {
+            setLoading(false);
+          });
+      })
+      .catch((error) => {
+        console.error("Error setting persistence:", error);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUser(user);
@@ -53,32 +86,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       setLoading(false);
     });
-
-    // Handle the redirect result
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result) {
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (!userDoc.exists()) {
-            const newUserProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              role: 'Industrialist',
-            };
-            await setDoc(userDocRef, newUserProfile);
-            setUserProfile(newUserProfile);
-          }
-        }
-      })
-      .catch((error) => {
-        console.error("Error getting redirect result:", error);
-      })
-      .finally(() => {
-         setLoading(false);
-      });
 
     return () => unsubscribe();
   }, []);

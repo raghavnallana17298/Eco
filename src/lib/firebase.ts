@@ -20,10 +20,7 @@ const firebaseConfig = {
 // Initialize Firebase for SSR
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-const auth = getAuth(app, {
-  persistence: undefined, // Let the SDK decide persistence
-  authDomain: firebaseConfig.authDomain,
-});
+const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
