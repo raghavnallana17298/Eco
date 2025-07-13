@@ -2,7 +2,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { onAuthStateChanged, User, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { onAuthStateChanged, User, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import type { UserProfile, UserRole } from '@/lib/types';
@@ -36,8 +36,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (userDoc.exists()) {
           setUserProfile(userDoc.data() as UserProfile);
         } else {
-          // Handle case where user exists in Auth but not Firestore
-          setUserProfile(null);
+          // This can happen after a redirect sign-in.
+          // Let's create the user profile if it doesn't exist.
+           const newUserProfile: UserProfile = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            role: 'Industrialist', // Default role for new Google sign-ins
+          };
+          await setDoc(userDocRef, newUserProfile);
+          setUserProfile(newUserProfile);
         }
       } else {
         setUser(null);
@@ -45,6 +53,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       setLoading(false);
     });
+
+    // Handle the redirect result
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result) {
+          const user = result.user;
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (!userDoc.exists()) {
+            const newUserProfile: UserProfile = {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              role: 'Industrialist',
+            };
+            await setDoc(userDocRef, newUserProfile);
+            setUserProfile(newUserProfile);
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting redirect result:", error);
+      })
+      .finally(() => {
+         setLoading(false);
+      });
 
     return () => unsubscribe();
   }, []);
@@ -54,26 +88,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     provider.setCustomParameters({
       prompt: 'select_account'
     });
-    auth.tenantId = process.env.NEXT_PUBLIC_FIREBASE_TENANT_ID || null;
-    // This is a simplified flow. A real app would ask for the role
-    // on a separate screen after Google sign-up if the user is new.
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      if (!userDoc.exists()) {
-        const newUserProfile: UserProfile = {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          role: 'Industrialist', // Default role for new Google sign-ins
-        };
-        await setDoc(userDocRef, newUserProfile);
-        setUserProfile(newUserProfile);
-      }
+      await signInWithRedirect(auth, provider);
     } catch (error) {
-      console.error("Error during Google sign-in:", error);
+      console.error("Error during Google sign-in redirect:", error);
     }
   };
 
