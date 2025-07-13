@@ -28,40 +28,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    // Set persistence to local storage
-    setPersistence(auth, browserLocalPersistence)
-      .then(() => {
-        // Handle the redirect result
-        getRedirectResult(auth)
-          .then(async (result) => {
-            if (result) {
-              const user = result.user;
-              const userDocRef = doc(db, 'users', user.uid);
-              const userDoc = await getDoc(userDocRef);
-              if (!userDoc.exists()) {
-                const newUserProfile: UserProfile = {
-                  uid: user.uid,
-                  email: user.email,
-                  displayName: user.displayName,
-                  role: 'Industrialist',
-                };
-                await setDoc(userDocRef, newUserProfile);
-                setUserProfile(newUserProfile);
-              }
-            }
-          })
-          .catch((error) => {
-            console.error("Error getting redirect result:", error);
-          })
-          .finally(() => {
-            setLoading(false);
-          });
-      })
-      .catch((error) => {
-        console.error("Error setting persistence:", error);
-      });
+    // Set persistence once at the beginning
+    setPersistence(auth, browserLocalPersistence);
+
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          const user = result.user;
+          const userDocRef = doc(db, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (!userDoc.exists()) {
+            const newUserProfile: UserProfile = {
+              uid: user.uid,
+              email: user.email,
+              displayName: user.displayName,
+              role: 'Industrialist', // Default role for new Google sign-ins
+            };
+            await setDoc(userDocRef, newUserProfile);
+            setUserProfile(newUserProfile);
+          }
+        }
+      } catch (error) {
+        console.error("Error processing redirect result:", error);
+      }
+    };
+    
+    handleRedirectResult();
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setLoading(true);
       if (user) {
         setUser(user);
         const userDocRef = doc(db, 'users', user.uid);
@@ -69,16 +65,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (userDoc.exists()) {
           setUserProfile(userDoc.data() as UserProfile);
         } else {
-          // This can happen after a redirect sign-in.
-          // Let's create the user profile if it doesn't exist.
-           const newUserProfile: UserProfile = {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            role: 'Industrialist', // Default role for new Google sign-ins
-          };
-          await setDoc(userDocRef, newUserProfile);
-          setUserProfile(newUserProfile);
+           // This case handles a new user who just signed up via redirect
+           // The profile might have been created during redirect handling
         }
       } else {
         setUser(null);
@@ -92,13 +80,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account'
-    });
     try {
+      // Use signInWithRedirect for a more reliable flow
       await signInWithRedirect(auth, provider);
     } catch (error) {
       console.error("Error during Google sign-in redirect:", error);
+      throw error;
     }
   };
 
