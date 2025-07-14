@@ -4,6 +4,8 @@ import { UserProfile } from "@/lib/types";
 import { Mail, MapPin, Truck, User, MessageSquare } from "lucide-react";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
+import { startConversation } from "@/lib/actions";
+
 
 type TransporterCardProps = {
   transporter: UserProfile;
@@ -39,10 +41,13 @@ export function TransporterCard({ transporter }: TransporterCardProps) {
       </CardContent>
       <Separator />
        <CardFooter className="p-4">
-          <Button variant="outline" className="w-full">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Message
-          </Button>
+          <form action={startConversation}>
+            <input type="hidden" name="recipientId" value={transporter.uid} />
+            <Button type="submit" variant="outline" className="w-full">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              Message
+            </Button>
+          </form>
       </CardFooter>
     </Card>
   );

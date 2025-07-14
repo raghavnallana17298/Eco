@@ -56,3 +56,25 @@ export interface Notification {
   createdAt: Timestamp;
   link?: string; // Optional link to navigate to
 }
+
+// New Types for Chat
+export interface Conversation {
+  id: string;
+  participants: string[]; // array of user UIDs
+  participantProfiles: { [uid: string]: Pick<UserProfile, 'displayName' | 'plantName' | 'role'> };
+  lastMessage?: {
+    text: string;
+    senderId: string;
+    createdAt: Timestamp;
+  };
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  text: string;
+  createdAt: Timestamp;
+}

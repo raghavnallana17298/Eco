@@ -19,7 +19,7 @@ import {
   SheetFooter
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CircleUser, LogOut, Recycle, User, Bell, CheckCheck } from "lucide-react";
+import { CircleUser, LogOut, Recycle, User, Bell, CheckCheck, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
 import { useState, useEffect } from "react";
@@ -78,6 +78,12 @@ export function Header() {
       </Link>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <div className="ml-auto flex items-center gap-4">
+           <Button variant="ghost" size="icon" className="rounded-full" asChild>
+                <Link href="/dashboard/chat">
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="sr-only">Messages</span>
+                </Link>
+           </Button>
            <Sheet open={isSheetOpen} onOpenChange={handleOpenChange}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full relative">
@@ -116,7 +122,7 @@ export function Header() {
               </div>
                {notifications.length > 0 && (
                 <SheetFooter className="mt-4">
-                  <Button variant="outline" size="sm" disabled={unreadCount === 0}>
+                  <Button variant="outline" size="sm" disabled={unreadCount === 0} onClick={() => handleOpenChange(true)}>
                     <CheckCheck className="mr-2 h-4 w-4" />
                     Mark all as read
                   </Button>
