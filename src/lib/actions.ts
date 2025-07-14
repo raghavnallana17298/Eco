@@ -53,13 +53,13 @@ export async function startConversation(formData: FormData) {
       participants,
       participantProfiles: {
         [senderId]: {
-            displayName: currentUserProfile.displayName,
-            plantName: currentUserProfile.plantName,
+            displayName: currentUserProfile.displayName || "User",
+            plantName: currentUserProfile.plantName || null,
             role: currentUserProfile.role,
         },
         [recipientId]: {
-            displayName: recipientProfile.displayName,
-            plantName: recipientProfile.plantName,
+            displayName: recipientProfile.displayName || "User",
+            plantName: recipientProfile.plantName || null,
             role: recipientProfile.role,
         }
       },
