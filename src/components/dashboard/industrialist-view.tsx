@@ -34,7 +34,7 @@ export function IndustrialistView() {
   const { user, userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [recyclers, setRecyclers] = useState<UserProfile[]>([]);
-  const [isFetchingRecyclers, setIsFetchingRecyclers] = useState(false);
+  const [isFetchingRecyclers, setIsFetchingRecyclers] = useState(true);
   const [myRequests, setMyRequests] = useState<WasteRequest[]>([]);
   const [isFetchingRequests, setIsFetchingRequests] = useState(true);
   const { toast } = useToast();
@@ -48,20 +48,16 @@ export function IndustrialistView() {
     },
   });
 
-  // Fetch Recyclers
+  // Fetch all Recyclers
   useEffect(() => {
     const fetchRecyclers = async () => {
         setIsFetchingRecyclers(true);
         try {
-          if (userProfile?.location) {
             const usersRef = collection(db, "users");
-            const q = query(usersRef, where("role", "==", "Recycler"), where("location", "==", userProfile.location));
+            const q = query(usersRef, where("role", "==", "Recycler"));
             const querySnapshot = await getDocs(q);
             const recyclersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
             setRecyclers(recyclersData);
-          } else {
-            setRecyclers([]);
-          }
         } catch (error) {
           console.error("Error fetching recyclers:", error);
           toast({
@@ -73,11 +69,8 @@ export function IndustrialistView() {
           setIsFetchingRecyclers(false);
         }
     };
-
-    if (userProfile?.location) {
-      fetchRecyclers();
-    }
-  }, [userProfile?.location, toast]);
+    fetchRecyclers();
+  }, [toast]);
 
   // Fetch Industrialist's own requests
   useEffect(() => {
@@ -182,9 +175,9 @@ export function IndustrialistView() {
       <TabsContent value="find-recyclers">
         <Card>
           <CardHeader>
-            <CardTitle>Recycling Plants in Your Area</CardTitle>
+            <CardTitle>All Registered Recycling Plants</CardTitle>
             <CardDescription>
-             Browse recycling plants registered in your location: <strong>{userProfile.location}</strong>.
+             Browse all available recycling plants.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -202,10 +195,9 @@ export function IndustrialistView() {
             ) : (
               <Alert variant="default">
                 <Search className="h-4 w-4" />
-                <AlertTitle>No Recyclers Found in Your Area</AlertTitle>
+                <AlertTitle>No Recyclers Found</AlertTitle>
                 <AlertDescription>
-                  There are currently no registered recycling plants in your location. 
-                  You can still submit a general waste request, which will be visible to all recyclers.
+                  There are currently no registered recycling plants.
                 </AlertDescription>
               </Alert>
             )}
