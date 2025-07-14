@@ -8,6 +8,7 @@ export interface UserProfile {
   displayName: string | null;
   role: UserRole;
   location?: string; // Manual location: city, area, or postal code
+  materials?: string[]; // For Recyclers: materials they accept
 }
 
 export interface WasteRequest {

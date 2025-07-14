@@ -55,15 +55,11 @@ export function IndustrialistView() {
 
   useEffect(() => {
     const fetchRecyclers = async () => {
-      if (userProfile?.location) {
         setIsFetchingRecyclers(true);
         try {
           const usersRef = collection(db, "users");
-          const q = query(
-            usersRef,
-            where("role", "==", "Recycler"),
-            where("location", "==", userProfile.location)
-          );
+          // Fetch all recyclers for now, removing the strict location filter
+          const q = query(usersRef, where("role", "==", "Recycler"));
           const querySnapshot = await getDocs(q);
           const recyclersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
           setRecyclers(recyclersData);
@@ -72,16 +68,15 @@ export function IndustrialistView() {
           toast({
             variant: "destructive",
             title: "Error",
-            description: "Could not fetch nearby recyclers."
+            description: "Could not fetch available recyclers."
           });
         } finally {
           setIsFetchingRecyclers(false);
         }
-      }
     };
 
     fetchRecyclers();
-  }, [userProfile?.location, toast]);
+  }, [toast]);
 
   if (!userProfile?.location) {
     return (
@@ -140,10 +135,9 @@ export function IndustrialistView() {
       <TabsContent value="find-recyclers">
         <Card>
           <CardHeader>
-            <CardTitle>Nearby Recycling Plants</CardTitle>
+            <CardTitle>Available Recycling Plants</CardTitle>
             <CardDescription>
-              Showing recycling plants in <strong>{userProfile.location}</strong>. 
-              Contact them to coordinate waste pickup.
+             Browse all registered recycling plants. Contact them to coordinate waste pickup.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -163,8 +157,8 @@ export function IndustrialistView() {
                 <Search className="h-4 w-4" />
                 <AlertTitle>No Recyclers Found</AlertTitle>
                 <AlertDescription>
-                  There are currently no registered recycling plants in your specified location. 
-                  You can still submit a waste request, and we will notify plants if they register in your area.
+                  There are currently no registered recycling plants on the platform. 
+                  Check back later or submit a general waste request.
                 </AlertDescription>
               </Alert>
             )}
@@ -175,7 +169,7 @@ export function IndustrialistView() {
         <Card>
           <CardHeader>
             <CardTitle>Submit a Waste Pickup Request</CardTitle>
-            <CardDescription>Fill out the form below to schedule a pickup. Recyclers in <strong>{userProfile.location}</strong> will be notified.</CardDescription>
+            <CardDescription>Fill out the form below to schedule a pickup. This will be visible to all recyclers.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -264,4 +258,3 @@ export function IndustrialistView() {
     </Tabs>
   );
 }
-

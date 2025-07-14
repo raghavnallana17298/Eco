@@ -16,7 +16,7 @@ interface AuthContextType {
   signUpWithEmail: (name: string, email: string, pass: string, role: UserRole) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserProfile: (data: { displayName?: string; location?: string; }) => Promise<void>;
+  updateUserProfile: (data: Partial<Pick<UserProfile, 'displayName' | 'location' | 'materials'>>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +47,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               email: user.email,
               displayName: user.displayName,
               role: 'Industrialist', // Default role for new Google sign-ins
+              location: '',
+              materials: [],
             };
             await setDoc(userDocRef, newUserProfile);
           }
@@ -102,6 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         displayName: name,
         role,
         location: '',
+        materials: role === 'Recycler' ? [] : undefined,
       };
       await setDoc(doc(db, 'users', user.uid), newUserProfile);
       setUserProfile(newUserProfile);
@@ -120,17 +123,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const updateUserProfile = async (data: { displayName?: string; location?: string; }) => {
+  const updateUserProfile = async (data: Partial<Pick<UserProfile, 'displayName' | 'location' | 'materials'>>) => {
     if (!user) {
       throw new Error("You must be logged in to update your profile.");
     }
-
-    const dataToUpdate: { displayName?: string; location?: string } = {};
-    if (data.displayName) {
+    
+    const dataToUpdate: Partial<UserProfile> = {};
+    if (data.displayName !== undefined) {
       dataToUpdate.displayName = data.displayName;
     }
-    if (data.location) {
+    if (data.location !== undefined) {
       dataToUpdate.location = data.location;
+    }
+     if (data.materials !== undefined) {
+      dataToUpdate.materials = data.materials;
     }
 
     if (Object.keys(dataToUpdate).length === 0) {
