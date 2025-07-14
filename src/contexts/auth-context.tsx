@@ -16,7 +16,7 @@ interface AuthContextType {
   signUpWithEmail: (name: string, email: string, pass: string, role: UserRole) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserProfile: (data: { displayName?: string; }) => Promise<void>;
+  updateUserProfile: (data: { displayName?: string; location?: string; }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -101,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         email: user.email,
         displayName: name,
         role,
+        location: '',
       };
       await setDoc(doc(db, 'users', user.uid), newUserProfile);
       setUserProfile(newUserProfile);
@@ -119,14 +120,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const updateUserProfile = async (data: { displayName?: string; }) => {
+  const updateUserProfile = async (data: { displayName?: string; location?: string; }) => {
     if (!user) {
       throw new Error("You must be logged in to update your profile.");
     }
 
-    const dataToUpdate: { displayName?: string } = {};
+    const dataToUpdate: { displayName?: string; location?: string } = {};
     if (data.displayName) {
       dataToUpdate.displayName = data.displayName;
+    }
+    if (data.location) {
+      dataToUpdate.location = data.location;
     }
 
     if (Object.keys(dataToUpdate).length === 0) {

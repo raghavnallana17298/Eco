@@ -7,20 +7,22 @@ export interface UserProfile {
   email: string | null;
   displayName: string | null;
   role: UserRole;
-  location?: GeoPoint;
+  location?: string; // Manual location: city, area, or postal code
 }
 
 export interface WasteRequest {
   id: string;
   industrialistId: string;
+  industrialistName: string;
+  industrialistLocation: string;
   type: string;
   quantity: number; // in kg
-  location: GeoPoint;
   imageUrl?: string;
+  notes?: string;
   status: 'pending' | 'accepted' | 'in-transit' | 'completed' | 'cancelled';
   createdAt: Timestamp;
-  acceptedByRecycler?: string;
-  transportedBy?: string;
+  acceptedByRecyclerId?: string;
+  transportedById?: string;
 }
 
 export interface RecycledMaterial {

@@ -29,6 +29,7 @@ import { Loader2 } from "lucide-react";
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  location: z.string().min(3, { message: "Location must be at least 3 characters." }),
 });
 
 export default function ProfilePage() {
@@ -40,6 +41,7 @@ export default function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: "",
+      location: "",
     },
   });
 
@@ -47,6 +49,7 @@ export default function ProfilePage() {
     if (userProfile) {
       form.reset({
         displayName: userProfile.displayName || "",
+        location: userProfile.location || "",
       });
     }
   }, [userProfile, form]);
@@ -59,6 +62,7 @@ export default function ProfilePage() {
         title: "Success",
         description: "Your profile has been updated.",
       });
+      form.reset(values, { keepValues: true }); // Keep the new values in the form
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -91,6 +95,19 @@ export default function ProfilePage() {
                     <FormLabel>Full Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Your full name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>My Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., City, Postal Code" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

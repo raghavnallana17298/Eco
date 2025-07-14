@@ -6,15 +6,18 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MapView } from "@/components/map-view";
-import { Upload, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Upload, Loader2, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+import Link from "next/link";
+
 
 const wasteRequestSchema = z.object({
   type: z.string().min(1, "Waste type is required"),
@@ -31,6 +34,7 @@ const mockRequests = [
 ];
 
 export function IndustrialistView() {
+  const { userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   
@@ -42,6 +46,29 @@ export function IndustrialistView() {
       notes: "",
     },
   });
+
+  if (!userProfile?.location) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Welcome to EcoNexus!</CardTitle>
+          <CardDescription>To get started, please set your location.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <MapPin className="h-4 w-4" />
+            <AlertTitle>Location Required</AlertTitle>
+            <AlertDescription>
+              You need to set your location to find nearby recyclers and create waste requests.
+            </AlertDescription>
+          </Alert>
+          <Button asChild className="mt-4">
+            <Link href="/dashboard/profile">Set My Location</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   function onSubmit(values: z.infer<typeof wasteRequestSchema>) {
     setLoading(true);
@@ -77,11 +104,11 @@ export function IndustrialistView() {
         <Card>
           <CardHeader>
             <CardTitle>Submit a Waste Pickup Request</CardTitle>
-            <CardDescription>Fill out the form below to schedule a pickup for your recyclable waste.</CardDescription>
+            <CardDescription>Fill out the form below to schedule a pickup. Nearby recyclers in <strong>{userProfile.location}</strong> will be notified.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="grid md:grid-cols-2 gap-8">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-4">
                   <FormField control={form.control} name="type" render={({ field }) => (
                     <FormItem>
@@ -125,11 +152,6 @@ export function IndustrialistView() {
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Submit Request
                   </Button>
-                </div>
-                <div className="flex flex-col gap-4">
-                   <FormLabel>Pickup Location</FormLabel>
-                   <MapView />
-                   <FormDescription>Nearby recycling plants will be notified based on this location.</FormDescription>
                 </div>
               </form>
             </Form>
