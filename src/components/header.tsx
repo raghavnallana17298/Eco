@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { CircleUser, LogOut, Recycle, User } from "lucide-react";
+import { CircleUser, LogOut, Recycle, User, Bell } from "lucide-react";
 import Link from "next/link";
 
 export function Header() {
@@ -24,7 +24,11 @@ export function Header() {
         <span className="text-lg font-bold font-headline">Eco<span className="text-primary">Nexus</span></span>
       </Link>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-        <div className="ml-auto flex-1 sm:flex-initial">
+        <div className="ml-auto flex items-center gap-4">
+           <Button variant="ghost" size="icon" className="rounded-full">
+            <Bell className="h-5 w-5" />
+            <span className="sr-only">Toggle notifications</span>
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">
