@@ -7,20 +7,20 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Loader2, MapPin, Building, Search } from "lucide-react";
+import { Upload, Loader2, MapPin, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
-import type { UserProfile } from "@/lib/types";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy } from "firebase/firestore";
+import type { UserProfile, WasteRequest } from "@/lib/types";
 import { RecyclerCard } from "@/components/recycler-card";
 
 const wasteRequestSchema = z.object({
@@ -30,18 +30,13 @@ const wasteRequestSchema = z.object({
   notes: z.string().optional(),
 });
 
-const mockRequests = [
-  { id: 'WR001', type: 'Plastic Bottles', quantity: 150, status: 'completed' },
-  { id: 'WR002', type: 'Cardboard', quantity: 500, status: 'in-transit' },
-  { id: 'WR003', type: 'E-Waste', quantity: 50, status: 'accepted' },
-  { id: 'WR004', type: 'Scrap Metal', quantity: 1200, status: 'pending' },
-];
-
 export function IndustrialistView() {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [recyclers, setRecyclers] = useState<UserProfile[]>([]);
   const [isFetchingRecyclers, setIsFetchingRecyclers] = useState(false);
+  const [myRequests, setMyRequests] = useState<WasteRequest[]>([]);
+  const [isFetchingRequests, setIsFetchingRequests] = useState(true);
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof wasteRequestSchema>>({
@@ -53,16 +48,20 @@ export function IndustrialistView() {
     },
   });
 
+  // Fetch Recyclers
   useEffect(() => {
     const fetchRecyclers = async () => {
         setIsFetchingRecyclers(true);
         try {
-          const usersRef = collection(db, "users");
-          // Fetch all recyclers for now, removing the strict location filter
-          const q = query(usersRef, where("role", "==", "Recycler"));
-          const querySnapshot = await getDocs(q);
-          const recyclersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
-          setRecyclers(recyclersData);
+          if (userProfile?.location) {
+            const usersRef = collection(db, "users");
+            const q = query(usersRef, where("role", "==", "Recycler"), where("location", "==", userProfile.location));
+            const querySnapshot = await getDocs(q);
+            const recyclersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+            setRecyclers(recyclersData);
+          } else {
+            setRecyclers([]);
+          }
         } catch (error) {
           console.error("Error fetching recyclers:", error);
           toast({
@@ -75,8 +74,35 @@ export function IndustrialistView() {
         }
     };
 
-    fetchRecyclers();
-  }, [toast]);
+    if (userProfile?.location) {
+      fetchRecyclers();
+    }
+  }, [userProfile?.location, toast]);
+
+  // Fetch Industrialist's own requests
+  useEffect(() => {
+    if (!user) return;
+
+    setIsFetchingRequests(true);
+    const requestsRef = collection(db, "wasteRequests");
+    const q = query(requestsRef, where("industrialistId", "==", user.uid), orderBy("createdAt", "desc"));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
+      setMyRequests(requestsData);
+      setIsFetchingRequests(false);
+    }, (error) => {
+      console.error("Error fetching waste requests:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not fetch your waste requests."
+      });
+      setIsFetchingRequests(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, toast]);
 
   if (!userProfile?.location) {
     return (
@@ -101,18 +127,39 @@ export function IndustrialistView() {
     );
   }
 
-  function onSubmit(values: z.infer<typeof wasteRequestSchema>) {
+  async function onSubmit(values: z.infer<typeof wasteRequestSchema>) {
+    if (!user || !userProfile) {
+      toast({ variant: "destructive", title: "Error", description: "You must be logged in to submit a request."});
+      return;
+    }
+
     setLoading(true);
-    console.log(values);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      await addDoc(collection(db, "wasteRequests"), {
+        industrialistId: user.uid,
+        industrialistName: userProfile.displayName,
+        industrialistLocation: userProfile.location,
+        type: values.type,
+        quantity: values.quantity,
+        notes: values.notes,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+      });
+
       toast({
         title: "Request Submitted!",
         description: "Your waste pickup request has been sent to nearby facilities.",
       });
       form.reset();
+    } catch (error: any) {
+       toast({
+        variant: "destructive",
+        title: "Submission Failed",
+        description: "Could not submit your request. " + error.message,
+      });
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   }
 
   const statusVariant = (status: string) => {
@@ -135,9 +182,9 @@ export function IndustrialistView() {
       <TabsContent value="find-recyclers">
         <Card>
           <CardHeader>
-            <CardTitle>Available Recycling Plants</CardTitle>
+            <CardTitle>Recycling Plants in Your Area</CardTitle>
             <CardDescription>
-             Browse all registered recycling plants. Contact them to coordinate waste pickup.
+             Browse recycling plants registered in your location: <strong>{userProfile.location}</strong>.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -155,10 +202,10 @@ export function IndustrialistView() {
             ) : (
               <Alert variant="default">
                 <Search className="h-4 w-4" />
-                <AlertTitle>No Recyclers Found</AlertTitle>
+                <AlertTitle>No Recyclers Found in Your Area</AlertTitle>
                 <AlertDescription>
-                  There are currently no registered recycling plants on the platform. 
-                  Check back later or submit a general waste request.
+                  There are currently no registered recycling plants in your location. 
+                  You can still submit a general waste request, which will be visible to all recyclers.
                 </AlertDescription>
               </Alert>
             )}
@@ -169,7 +216,7 @@ export function IndustrialistView() {
         <Card>
           <CardHeader>
             <CardTitle>Submit a Waste Pickup Request</CardTitle>
-            <CardDescription>Fill out the form below to schedule a pickup. This will be visible to all recyclers.</CardDescription>
+            <CardDescription>Fill out the form below to schedule a pickup. This will be visible to recyclers in your area.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -230,28 +277,44 @@ export function IndustrialistView() {
             <CardDescription>Here is a list of your past and current waste pickup requests.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Request ID</TableHead>
-                  <TableHead>Waste Type</TableHead>
-                  <TableHead>Quantity (kg)</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.id}</TableCell>
-                    <TableCell>{request.type}</TableCell>
-                    <TableCell>{request.quantity}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(request.status)} className="capitalize">{request.status}</Badge>
-                    </TableCell>
+            {isFetchingRequests ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : myRequests.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Waste Type</TableHead>
+                    <TableHead>Quantity (kg)</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {myRequests.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell>
+                        {request.createdAt ? new Date(request.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>{request.type}</TableCell>
+                      <TableCell>{request.quantity}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusVariant(request.status)} className="capitalize">{request.status}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+               <Alert variant="default">
+                <Search className="h-4 w-4" />
+                <AlertTitle>No Requests Found</AlertTitle>
+                <AlertDescription>
+                  You haven't submitted any waste requests yet. Go to the "New Request" tab to create one.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </TabsContent>

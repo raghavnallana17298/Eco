@@ -1,16 +1,18 @@
+
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "../ui/button";
-
-const mockIncomingWaste = [
-    { id: 'WR004', industrialist: 'MetalWorks Inc.', type: 'Scrap Metal', quantity: 1200, distance: 5.2 },
-    { id: 'WR005', industrialist: 'Printify Co.', type: 'Paper & Cardboard', quantity: 800, distance: 8.1 },
-    { id: 'WR006', industrialist: 'Tech Solutions', type: 'E-Waste', quantity: 150, distance: 12.5 },
-];
+import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
+import type { WasteRequest } from "@/lib/types";
+import { Loader2, Search } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 const mockInventory = [
     { id: 'RM001', type: 'PET Flakes', quantity: 5000, price: 1.25 },
@@ -20,6 +22,65 @@ const mockInventory = [
 ];
 
 export function RecyclerView() {
+  const { user, userProfile } = useAuth();
+  const { toast } = useToast();
+  const [incomingWaste, setIncomingWaste] = useState<WasteRequest[]>([]);
+  const [isFetchingWaste, setIsFetchingWaste] = useState(true);
+
+  useEffect(() => {
+    if (!userProfile?.location) {
+      setIsFetchingWaste(false);
+      return;
+    }
+
+    setIsFetchingWaste(true);
+    const requestsRef = collection(db, "wasteRequests");
+    const q = query(
+      requestsRef, 
+      where("industrialistLocation", "==", userProfile.location),
+      where("status", "==", "pending"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
+      setIncomingWaste(requestsData);
+      setIsFetchingWaste(false);
+    }, (error) => {
+      console.error("Error fetching incoming waste:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not fetch incoming waste requests."
+      });
+      setIsFetchingWaste(false);
+    });
+
+    return () => unsubscribe();
+  }, [userProfile?.location, toast]);
+
+  const handleAcceptRequest = async (requestId: string) => {
+    if (!user) return;
+
+    const requestRef = doc(db, "wasteRequests", requestId);
+    try {
+      await updateDoc(requestRef, {
+        status: "accepted",
+        acceptedByRecyclerId: user.uid,
+      });
+      toast({
+        title: "Request Accepted",
+        description: "The industrialist has been notified.",
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not accept the request. " + error.message,
+      });
+    }
+  };
+
   return (
     <Tabs defaultValue="incoming-waste">
       <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
@@ -30,35 +91,51 @@ export function RecyclerView() {
         <Card>
           <CardHeader>
             <CardTitle>Incoming Waste Requests</CardTitle>
-            <CardDescription>These are pending waste pickup requests from nearby industrialists.</CardDescription>
+            <CardDescription>These are pending waste pickup requests from industrialists in your area: <strong>{userProfile?.location || 'N/A'}</strong></CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Request ID</TableHead>
-                  <TableHead>Industrialist</TableHead>
-                  <TableHead>Waste Type</TableHead>
-                  <TableHead>Quantity (kg)</TableHead>
-                  <TableHead>Distance (km)</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockIncomingWaste.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.id}</TableCell>
-                    <TableCell>{request.industrialist}</TableCell>
-                    <TableCell>{request.type}</TableCell>
-                    <TableCell>{request.quantity}</TableCell>
-                    <TableCell>{request.distance}</TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="outline" size="sm">View & Accept</Button>
-                    </TableCell>
+            {isFetchingWaste ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : incomingWaste.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Industrialist</TableHead>
+                    <TableHead>Waste Type</TableHead>
+                    <TableHead>Quantity (kg)</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {incomingWaste.map((request) => (
+                    <TableRow key={request.id}>
+                       <TableCell>
+                        {request.createdAt ? new Date(request.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                      </TableCell>
+                      <TableCell>{request.industrialistName}</TableCell>
+                      <TableCell>{request.type}</TableCell>
+                      <TableCell>{request.quantity}</TableCell>
+                      <TableCell className="text-right">
+                          <Button variant="outline" size="sm" onClick={() => handleAcceptRequest(request.id)}>
+                            Accept
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <Alert variant="default">
+                <Search className="h-4 w-4" />
+                <AlertTitle>No Pending Requests</AlertTitle>
+                <AlertDescription>
+                  There are currently no pending waste requests in your area. You will be notified when a new one is submitted.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </TabsContent>
