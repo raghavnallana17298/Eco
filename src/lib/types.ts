@@ -6,6 +6,7 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
+  plantName?: string; // For Recyclers: the name of their facility
   role: UserRole;
   location?: string; // Manual location: city, area, or postal code
   materials?: string[]; // For Recyclers: materials they accept

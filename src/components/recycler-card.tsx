@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { UserProfile } from "@/lib/types";
-import { Building, Mail, MapPin, Package } from "lucide-react";
+import { Building, Mail, MapPin, Package, User } from "lucide-react";
 import { Badge } from "./ui/badge";
 
 type RecyclerCardProps = {
@@ -14,12 +14,18 @@ export function RecyclerCard({ recycler }: RecyclerCardProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Building className="text-accent" />
-          {recycler.displayName || "Recycling Plant"}
+          {recycler.plantName || recycler.displayName || "Recycling Plant"}
         </CardTitle>
         <CardDescription>Recycling Facility</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <div className="space-y-2 text-muted-foreground">
+          {recycler.displayName && (
+            <div className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                <span>Owner: {recycler.displayName}</span>
+            </div>
+          )}
           {recycler.location && (
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />

@@ -31,6 +31,7 @@ import { Badge } from "@/components/ui/badge";
 
 const profileSchema = z.object({
   displayName: z.string().min(2, { message: "Name must be at least 2 characters." }),
+  plantName: z.string().optional(),
   location: z.string().min(3, { message: "Location must be at least 3 characters." }),
   materials: z.array(z.string()).optional(),
 });
@@ -45,6 +46,7 @@ export default function ProfilePage() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
       displayName: "",
+      plantName: "",
       location: "",
       materials: [],
     },
@@ -54,6 +56,7 @@ export default function ProfilePage() {
     if (userProfile) {
       form.reset({
         displayName: userProfile.displayName || "",
+        plantName: userProfile.plantName || "",
         location: userProfile.location || "",
         materials: userProfile.materials || [],
       });
@@ -76,12 +79,18 @@ export default function ProfilePage() {
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     setLoading(true);
     try {
-      await updateUserProfile(values);
+      // Ensure plantName is only sent for Recyclers
+      const dataToUpdate: Partial<z.infer<typeof profileSchema>> = {
+        ...values,
+        plantName: userProfile?.role === 'Recycler' ? values.plantName : undefined,
+      };
+
+      await updateUserProfile(dataToUpdate);
       toast({
         title: "Success",
         description: "Your profile has been updated.",
       });
-      form.reset(values, { keepValues: true }); // Keep the new values in the form
+      form.reset(values, { keepValues: true }); 
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -111,7 +120,9 @@ export default function ProfilePage() {
                 name="displayName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Full Name</FormLabel>
+                    <FormLabel>
+                      {userProfile?.role === 'Recycler' ? "Owner's Full Name" : "Full Name"}
+                    </FormLabel>
                     <FormControl>
                       <Input placeholder="Your full name" {...field} />
                     </FormControl>
@@ -119,6 +130,21 @@ export default function ProfilePage() {
                   </FormItem>
                 )}
               />
+              {userProfile?.role === 'Recycler' && (
+                <FormField
+                  control={form.control}
+                  name="plantName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Recycling Plant Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., GreenCycle Inc." {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               <FormField
                 control={form.control}
                 name="location"
