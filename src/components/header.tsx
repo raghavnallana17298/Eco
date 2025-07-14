@@ -10,9 +10,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { CircleUser, LogOut, Recycle, User, Bell } from "lucide-react";
 import Link from "next/link";
+import { Badge } from "./ui/badge";
 
 export function Header() {
   const { userProfile, signOut } = useAuth();
@@ -25,10 +34,27 @@ export function Header() {
       </Link>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <div className="ml-auto flex items-center gap-4">
-           <Button variant="ghost" size="icon" className="rounded-full">
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Toggle notifications</span>
-          </Button>
+           <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full relative">
+                <Bell className="h-5 w-5" />
+                <span className="sr-only">Toggle notifications</span>
+                 {/* This is a placeholder for the notification count badge */}
+                 {/* <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 justify-center p-0">3</Badge> */}
+              </Button>
+            </SheetTrigger>
+            <SheetContent>
+              <SheetHeader>
+                <SheetTitle>Notifications</SheetTitle>
+                <SheetDescription>
+                  You have no new notifications.
+                </SheetDescription>
+              </SheetHeader>
+              <div className="mt-4">
+                {/* Notifications list will go here */}
+              </div>
+            </SheetContent>
+          </Sheet>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="secondary" size="icon" className="rounded-full">

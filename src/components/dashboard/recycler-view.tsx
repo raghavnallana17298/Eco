@@ -44,13 +44,13 @@ export function RecyclerView() {
     
     const q = query(
       requestsRef, 
-      where("industrialistLocation", "==", userProfile.location),
       where("status", "==", "pending"),
       orderBy("createdAt", "desc")
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
+      const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest))
+        .filter(request => request.industrialistLocation === userProfile.location); // client-side filter
       setIncomingWaste(requestsData);
       setIsFetchingWaste(false);
     }, (error) => {
@@ -98,13 +98,14 @@ export function RecyclerView() {
 
 
   const handleAcceptRequest = async (requestId: string) => {
-    if (!user) return;
+    if (!user || !userProfile) return;
 
     const requestRef = doc(db, "wasteRequests", requestId);
     try {
       await updateDoc(requestRef, {
         status: "accepted",
         acceptedByRecyclerId: user.uid,
+        recyclerName: userProfile.plantName || userProfile.displayName,
       });
       toast({
         title: "Request Accepted",

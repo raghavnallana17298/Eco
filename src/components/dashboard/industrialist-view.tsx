@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Loader2, MapPin, Search } from "lucide-react";
+import { Upload, Loader2, MapPin, Search, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
@@ -22,6 +22,7 @@ import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import type { UserProfile, WasteRequest } from "@/lib/types";
 import { RecyclerCard } from "@/components/recycler-card";
+import { TransporterCard } from "@/components/transporter-card";
 
 const wasteRequestSchema = z.object({
   type: z.string().min(1, "Waste type is required"),
@@ -34,7 +35,9 @@ export function IndustrialistView() {
   const { user, userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [recyclers, setRecyclers] = useState<UserProfile[]>([]);
+  const [transporters, setTransporters] = useState<UserProfile[]>([]);
   const [isFetchingRecyclers, setIsFetchingRecyclers] = useState(true);
+  const [isFetchingTransporters, setIsFetchingTransporters] = useState(true);
   const [myRequests, setMyRequests] = useState<WasteRequest[]>([]);
   const [isFetchingRequests, setIsFetchingRequests] = useState(true);
   const { toast } = useToast();
@@ -48,29 +51,35 @@ export function IndustrialistView() {
     },
   });
 
+  const fetchUsersByRole = async (role: "Recycler" | "Transporter", setter: React.Dispatch<React.SetStateAction<UserProfile[]>>, loadingSetter: React.Dispatch<React.SetStateAction<boolean>>) => {
+    loadingSetter(true);
+    try {
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("role", "==", role));
+      const querySnapshot = await getDocs(q);
+      const usersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+      setter(usersData);
+    } catch (error) {
+      console.error(`Error fetching ${role}s:`, error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Could not fetch available ${role}s.`
+      });
+    } finally {
+      loadingSetter(false);
+    }
+  };
+
   // Fetch all Recyclers
   useEffect(() => {
-    const fetchRecyclers = async () => {
-        setIsFetchingRecyclers(true);
-        try {
-            const usersRef = collection(db, "users");
-            const q = query(usersRef, where("role", "==", "Recycler"));
-            const querySnapshot = await getDocs(q);
-            const recyclersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
-            setRecyclers(recyclersData);
-        } catch (error) {
-          console.error("Error fetching recyclers:", error);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not fetch available recyclers."
-          });
-        } finally {
-          setIsFetchingRecyclers(false);
-        }
-    };
-    fetchRecyclers();
-  }, [toast]);
+    fetchUsersByRole("Recycler", setRecyclers, setIsFetchingRecyclers);
+  }, []);
+
+  // Fetch all Transporters
+  useEffect(() => {
+    fetchUsersByRole("Transporter", setTransporters, setIsFetchingTransporters);
+  }, []);
 
   // Fetch Industrialist's own requests
   useEffect(() => {
@@ -82,7 +91,6 @@ export function IndustrialistView() {
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-      // Sort on the client-side
       requestsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setMyRequests(requestsData);
       setIsFetchingRequests(false);
@@ -168,44 +176,14 @@ export function IndustrialistView() {
   }
 
   return (
-    <Tabs defaultValue="find-recyclers">
-      <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
-        <TabsTrigger value="find-recyclers">Find Recyclers</TabsTrigger>
+    <Tabs defaultValue="new-request">
+      <TabsList className="grid w-full grid-cols-4 md:w-[800px]">
         <TabsTrigger value="new-request">New Request</TabsTrigger>
         <TabsTrigger value="my-requests">My Requests</TabsTrigger>
+        <TabsTrigger value="find-recyclers">Find Recyclers</TabsTrigger>
+        <TabsTrigger value="find-transporters">Find Transporters</TabsTrigger>
       </TabsList>
-      <TabsContent value="find-recyclers">
-        <Card>
-          <CardHeader>
-            <CardTitle>All Registered Recycling Plants</CardTitle>
-            <CardDescription>
-             Browse all available recycling plants.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isFetchingRecyclers ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="ml-4 text-muted-foreground">Searching for recyclers...</p>
-              </div>
-            ) : recyclers.length > 0 ? (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {recyclers.map(recycler => (
-                  <RecyclerCard key={recycler.uid} recycler={recycler} />
-                ))}
-              </div>
-            ) : (
-              <Alert variant="default">
-                <Search className="h-4 w-4" />
-                <AlertTitle>No Recyclers Found</AlertTitle>
-                <AlertDescription>
-                  There are currently no registered recycling plants.
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
+
       <TabsContent value="new-request">
         <Card>
           <CardHeader>
@@ -283,6 +261,7 @@ export function IndustrialistView() {
                     <TableHead>Waste Type</TableHead>
                     <TableHead>Quantity (kg)</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Accepted By</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -296,6 +275,7 @@ export function IndustrialistView() {
                       <TableCell>
                         <Badge variant={statusVariant(request.status)} className="capitalize">{request.status}</Badge>
                       </TableCell>
+                      <TableCell>{request.recyclerName || 'N/A'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -306,6 +286,70 @@ export function IndustrialistView() {
                 <AlertTitle>No Requests Found</AlertTitle>
                 <AlertDescription>
                   You haven't submitted any waste requests yet. Go to the "New Request" tab to create one.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+       <TabsContent value="find-recyclers">
+        <Card>
+          <CardHeader>
+            <CardTitle>All Registered Recycling Plants</CardTitle>
+            <CardDescription>
+             Browse all available recycling plants.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isFetchingRecyclers ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-4 text-muted-foreground">Searching for recyclers...</p>
+              </div>
+            ) : recyclers.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {recyclers.map(recycler => (
+                  <RecyclerCard key={recycler.uid} recycler={recycler} />
+                ))}
+              </div>
+            ) : (
+              <Alert variant="default">
+                <Search className="h-4 w-4" />
+                <AlertTitle>No Recyclers Found</AlertTitle>
+                <AlertDescription>
+                  There are currently no registered recycling plants.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+       <TabsContent value="find-transporters">
+        <Card>
+          <CardHeader>
+            <CardTitle>All Registered Transporters</CardTitle>
+            <CardDescription>
+             Browse all available transport providers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isFetchingTransporters ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-4 text-muted-foreground">Searching for transporters...</p>
+              </div>
+            ) : transporters.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {transporters.map(transporter => (
+                  <TransporterCard key={transporter.uid} transporter={transporter} />
+                ))}
+              </div>
+            ) : (
+              <Alert variant="default">
+                <Truck className="h-4 w-4" />
+                <AlertTitle>No Transporters Found</AlertTitle>
+                <AlertDescription>
+                  There are currently no registered transport providers.
                 </AlertDescription>
               </Alert>
             )}

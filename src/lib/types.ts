@@ -24,6 +24,7 @@ export interface WasteRequest {
   status: 'pending' | 'accepted' | 'in-transit' | 'completed' | 'cancelled';
   createdAt: Timestamp;
   acceptedByRecyclerId?: string;
+  recyclerName?: string;
   transportedById?: string;
 }
 
@@ -45,4 +46,13 @@ export interface TransportJob {
   pickupLocation: GeoPoint;
   dropoffLocation: GeoPoint;
   createdAt: Timestamp;
+}
+
+export interface Notification {
+  id: string;
+  userId: string; // The user who should receive the notification
+  message: string;
+  read: boolean;
+  createdAt: Timestamp;
+  link?: string; // Optional link to navigate to
 }
