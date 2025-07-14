@@ -44,13 +44,14 @@ export function RecyclerView() {
     
     const q = query(
       requestsRef, 
-      where("status", "==", "pending"),
-      orderBy("createdAt", "desc")
+      where("status", "==", "pending")
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest))
         .filter(request => request.industrialistLocation === userProfile.location); // client-side filter
+      
+      requestsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setIncomingWaste(requestsData);
       setIsFetchingWaste(false);
     }, (error) => {
@@ -75,12 +76,12 @@ export function RecyclerView() {
     
     const q = query(
       requestsRef,
-      where("acceptedByRecyclerId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("acceptedByRecyclerId", "==", user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const historyData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
+      historyData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setRequestHistory(historyData);
       setIsFetchingHistory(false);
     }, (error) => {
