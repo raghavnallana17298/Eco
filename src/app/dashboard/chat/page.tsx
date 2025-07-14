@@ -4,11 +4,11 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import type { Conversation } from '@/lib/types';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
@@ -30,14 +30,16 @@ export default function ChatListPage() {
 
     setLoading(true);
     const conversationsRef = collection(db, 'conversations');
+    // Removed orderBy('updatedAt', 'desc') to avoid composite index error. Sorting is now done client-side.
     const q = query(
       conversationsRef,
-      where('participants', 'array-contains', user.uid),
-      orderBy('updatedAt', 'desc')
+      where('participants', 'array-contains', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const convos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Conversation));
+      // Sort conversations by `updatedAt` timestamp on the client
+      convos.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
       setConversations(convos);
       setLoading(false);
     }, (error) => {
