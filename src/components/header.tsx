@@ -39,12 +39,14 @@ export function Header() {
     const notifsRef = collection(db, "notifications");
     const q = query(
       notifsRef,
-      where("userId", "==", user.uid),
-      orderBy("createdAt", "desc")
+      where("userId", "==", user.uid)
+      // orderBy("createdAt", "desc") // This requires a composite index
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+      // Sort on the client instead
+      notifsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setNotifications(notifsData);
     });
 
@@ -99,7 +101,7 @@ export function Header() {
                        <Link href={notif.link || "#"} className="space-y-1" onClick={() => setIsSheetOpen(false)}>
                         <p className={`text-sm font-medium ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}>{notif.message}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(notif.createdAt.seconds * 1000).toLocaleString()}
+                          {notif.createdAt ? new Date(notif.createdAt.seconds * 1000).toLocaleString() : ''}
                         </p>
                       </Link>
                       <Separator />
@@ -114,7 +116,7 @@ export function Header() {
               </div>
                {notifications.length > 0 && (
                 <SheetFooter className="mt-4">
-                  <Button variant="outline" size="sm" disabled>
+                  <Button variant="outline" size="sm" disabled={unreadCount === 0}>
                     <CheckCheck className="mr-2 h-4 w-4" />
                     Mark all as read
                   </Button>
