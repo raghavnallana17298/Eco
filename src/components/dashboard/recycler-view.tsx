@@ -11,8 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
 import type { WasteRequest } from "@/lib/types";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, MapPin } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import Link from "next/link";
+
 
 const mockInventory = [
     { id: 'RM001', type: 'PET Flakes', quantity: 5000, price: 1.25 },
@@ -35,6 +37,8 @@ export function RecyclerView() {
 
     setIsFetchingWaste(true);
     const requestsRef = collection(db, "wasteRequests");
+    
+    // Query for pending requests that match the recycler's location
     const q = query(
       requestsRef, 
       where("industrialistLocation", "==", userProfile.location),
@@ -80,6 +84,29 @@ export function RecyclerView() {
       });
     }
   };
+
+  if (!userProfile?.location) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Set Your Plant's Location</CardTitle>
+          <CardDescription>To receive waste requests, you need to set your facility's location.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Alert>
+            <MapPin className="h-4 w-4" />
+            <AlertTitle>Location Required</AlertTitle>
+            <AlertDescription>
+              Please go to your profile to set a location. This will allow industrialists in your area to find you.
+            </AlertDescription>
+          </Alert>
+          <Button asChild className="mt-4">
+            <Link href="/dashboard/profile">Set My Location</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Tabs defaultValue="incoming-waste">
