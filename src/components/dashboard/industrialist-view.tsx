@@ -157,7 +157,7 @@ export function IndustrialistView() {
     }
   }
 
-  const statusVariant = (status: string) => {
+  const statusVariant = (status: string): "default" | "secondary" | "outline" | "destructive" => {
     switch (status) {
       case 'completed': return 'default';
       case 'in-transit': return 'secondary';
