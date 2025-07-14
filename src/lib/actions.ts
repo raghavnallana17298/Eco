@@ -5,10 +5,11 @@ import { auth, db } from "@/lib/firebase";
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { redirect } from "next/navigation";
 import type { UserProfile, Conversation } from "./types";
+import { getAuth } from "firebase/auth";
 
 export async function startConversation(formData: FormData) {
-  const { currentUser } = auth;
-  if (!currentUser) {
+  const senderId = formData.get("senderId") as string;
+  if (!senderId) {
     throw new Error("You must be logged in to start a conversation.");
   }
   
@@ -17,11 +18,11 @@ export async function startConversation(formData: FormData) {
     throw new Error("Recipient ID is missing.");
   }
 
-  if (currentUser.uid === recipientId) {
+  if (senderId === recipientId) {
     throw new Error("You cannot start a conversation with yourself.");
   }
 
-  const participants = [currentUser.uid, recipientId].sort();
+  const participants = [senderId, recipientId].sort();
 
   // Check if a conversation already exists
   const conversationsRef = collection(db, "conversations");
@@ -38,7 +39,7 @@ export async function startConversation(formData: FormData) {
     redirect(`/dashboard/chat/${conversationId}`);
   } else {
     // Create a new conversation
-    const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
+    const currentUserDoc = await getDoc(doc(db, "users", senderId));
     const recipientDoc = await getDoc(doc(db, "users", recipientId));
 
     if (!currentUserDoc.exists() || !recipientDoc.exists()) {
@@ -51,7 +52,7 @@ export async function startConversation(formData: FormData) {
     const newConversation: Omit<Conversation, 'id'> = {
       participants,
       participantProfiles: {
-        [currentUser.uid]: {
+        [senderId]: {
             displayName: currentUserProfile.displayName,
             plantName: currentUserProfile.plantName,
             role: currentUserProfile.role,

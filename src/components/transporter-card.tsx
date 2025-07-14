@@ -1,10 +1,13 @@
 
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { UserProfile } from "@/lib/types";
 import { Mail, MapPin, Truck, User, MessageSquare } from "lucide-react";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import { startConversation } from "@/lib/actions";
+import { useAuth } from "@/contexts/auth-context";
 
 
 type TransporterCardProps = {
@@ -12,6 +15,8 @@ type TransporterCardProps = {
 };
 
 export function TransporterCard({ transporter }: TransporterCardProps) {
+  const { user } = useAuth();
+  
   return (
     <Card className="flex flex-col">
       <CardHeader>
@@ -42,8 +47,9 @@ export function TransporterCard({ transporter }: TransporterCardProps) {
       <Separator />
        <CardFooter className="p-4">
           <form action={startConversation}>
+            <input type="hidden" name="senderId" value={user?.uid} />
             <input type="hidden" name="recipientId" value={transporter.uid} />
-            <Button type="submit" variant="outline" className="w-full">
+            <Button type="submit" variant="outline" className="w-full" disabled={!user}>
               <MessageSquare className="mr-2 h-4 w-4" />
               Message
             </Button>
