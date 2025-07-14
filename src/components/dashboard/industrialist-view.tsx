@@ -1,23 +1,27 @@
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Upload, Loader2, MapPin } from "lucide-react";
+import { Upload, Loader2, MapPin, Building, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
-
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import type { UserProfile } from "@/lib/types";
+import { RecyclerCard } from "@/components/recycler-card";
 
 const wasteRequestSchema = z.object({
   type: z.string().min(1, "Waste type is required"),
@@ -36,6 +40,8 @@ const mockRequests = [
 export function IndustrialistView() {
   const { userProfile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [recyclers, setRecyclers] = useState<UserProfile[]>([]);
+  const [isFetchingRecyclers, setIsFetchingRecyclers] = useState(false);
   const { toast } = useToast();
   
   const form = useForm<z.infer<typeof wasteRequestSchema>>({
@@ -46,6 +52,36 @@ export function IndustrialistView() {
       notes: "",
     },
   });
+
+  useEffect(() => {
+    const fetchRecyclers = async () => {
+      if (userProfile?.location) {
+        setIsFetchingRecyclers(true);
+        try {
+          const usersRef = collection(db, "users");
+          const q = query(
+            usersRef,
+            where("role", "==", "Recycler"),
+            where("location", "==", userProfile.location)
+          );
+          const querySnapshot = await getDocs(q);
+          const recyclersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+          setRecyclers(recyclersData);
+        } catch (error) {
+          console.error("Error fetching recyclers:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not fetch nearby recyclers."
+          });
+        } finally {
+          setIsFetchingRecyclers(false);
+        }
+      }
+    };
+
+    fetchRecyclers();
+  }, [userProfile?.location, toast]);
 
   if (!userProfile?.location) {
     return (
@@ -95,16 +131,51 @@ export function IndustrialistView() {
   }
 
   return (
-    <Tabs defaultValue="new-request">
-      <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+    <Tabs defaultValue="find-recyclers">
+      <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+        <TabsTrigger value="find-recyclers">Find Recyclers</TabsTrigger>
         <TabsTrigger value="new-request">New Request</TabsTrigger>
         <TabsTrigger value="my-requests">My Requests</TabsTrigger>
       </TabsList>
+      <TabsContent value="find-recyclers">
+        <Card>
+          <CardHeader>
+            <CardTitle>Nearby Recycling Plants</CardTitle>
+            <CardDescription>
+              Showing recycling plants in <strong>{userProfile.location}</strong>. 
+              Contact them to coordinate waste pickup.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isFetchingRecyclers ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-4 text-muted-foreground">Searching for recyclers...</p>
+              </div>
+            ) : recyclers.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {recyclers.map(recycler => (
+                  <RecyclerCard key={recycler.uid} recycler={recycler} />
+                ))}
+              </div>
+            ) : (
+              <Alert variant="default">
+                <Search className="h-4 w-4" />
+                <AlertTitle>No Recyclers Found</AlertTitle>
+                <AlertDescription>
+                  There are currently no registered recycling plants in your specified location. 
+                  You can still submit a waste request, and we will notify plants if they register in your area.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
       <TabsContent value="new-request">
         <Card>
           <CardHeader>
             <CardTitle>Submit a Waste Pickup Request</CardTitle>
-            <CardDescription>Fill out the form below to schedule a pickup. Nearby recyclers in <strong>{userProfile.location}</strong> will be notified.</CardDescription>
+            <CardDescription>Fill out the form below to schedule a pickup. Recyclers in <strong>{userProfile.location}</strong> will be notified.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -193,3 +264,4 @@ export function IndustrialistView() {
     </Tabs>
   );
 }
+
