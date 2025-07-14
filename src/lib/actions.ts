@@ -2,7 +2,7 @@
 "use server";
 
 import { auth, db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, increment } from "firebase/firestore";
 import { redirect } from "next/navigation";
 import type { UserProfile, Conversation } from "./types";
 import { getAuth } from "firebase/auth";
@@ -65,6 +65,10 @@ export async function startConversation(formData: FormData) {
       },
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      unreadCounts: {
+        [senderId]: 0,
+        [recipientId]: 0,
+      }
     };
 
     const docRef = await addDoc(conversationsRef, newConversation);

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/auth-context';
 import { db } from '@/lib/firebase';
-import { collection, doc, query, onSnapshot, orderBy, addDoc, serverTimestamp, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, doc, query, onSnapshot, orderBy, addDoc, serverTimestamp, writeBatch, getDoc, updateDoc, increment } from 'firebase/firestore';
 import type { Message, Conversation, UserProfile } from '@/lib/types';
 import { useParams, useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -39,7 +39,16 @@ export default function ChatPage() {
 
 
     useEffect(() => {
-        if (!conversationId) return;
+        if (!conversationId || !user) return;
+
+        // Mark messages as read when entering the chat
+        const markAsRead = async () => {
+             const convoDocRef = doc(db, 'conversations', conversationId);
+             const updatePath = `unreadCounts.${user.uid}`;
+             await updateDoc(convoDocRef, { [updatePath]: 0 });
+        };
+        markAsRead();
+
 
         const convoDocRef = doc(db, 'conversations', conversationId);
         const unsubscribeConvo = onSnapshot(convoDocRef, (doc) => {
@@ -63,7 +72,7 @@ export default function ChatPage() {
             unsubscribeConvo();
             unsubscribeMessages();
         };
-    }, [conversationId, router]);
+    }, [conversationId, router, user]);
 
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -72,6 +81,13 @@ export default function ChatPage() {
         setSending(true);
         const text = newMessage;
         setNewMessage("");
+
+        const otherParticipantId = conversation.participants.find(p => p !== user.uid);
+        if (!otherParticipantId) {
+            console.error("Could not find the other participant.");
+            setSending(false);
+            return;
+        }
 
         try {
             const batch = writeBatch(db);
@@ -86,8 +102,9 @@ export default function ChatPage() {
                 createdAt: serverTimestamp(),
             });
 
-            // Update conversation's last message
+            // Update conversation's last message and increment unread count for the other user
             const convoDocRef = doc(db, 'conversations', conversationId);
+            const unreadUpdatePath = `unreadCounts.${otherParticipantId}`;
             batch.update(convoDocRef, {
                 lastMessage: {
                     text,
@@ -95,6 +112,7 @@ export default function ChatPage() {
                     createdAt: serverTimestamp(),
                 },
                 updatedAt: serverTimestamp(),
+                [unreadUpdatePath]: increment(1),
             });
             
             await batch.commit();

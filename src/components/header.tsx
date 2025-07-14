@@ -25,14 +25,16 @@ import { Badge } from "./ui/badge";
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, orderBy, doc, writeBatch } from "firebase/firestore";
-import type { Notification } from "@/lib/types";
+import type { Notification, Conversation } from "@/lib/types";
 import { Separator } from "./ui/separator";
 
 export function Header() {
   const { userProfile, signOut, user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [totalUnreadMessages, setTotalUnreadMessages] = useState(0);
 
+  // Listener for notifications
   useEffect(() => {
     if (!user) return;
 
@@ -40,18 +42,36 @@ export function Header() {
     const q = query(
       notifsRef,
       where("userId", "==", user.uid)
-      // orderBy("createdAt", "desc") // This requires a composite index
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
-      // Sort on the client instead
       notifsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setNotifications(notifsData);
     });
 
     return () => unsubscribe();
   }, [user]);
+
+  // Listener for unread messages
+  useEffect(() => {
+    if (!user) return;
+
+    const convosRef = collection(db, "conversations");
+    const q = query(convosRef, where("participants", "array-contains", user.uid));
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      let total = 0;
+      snapshot.forEach(doc => {
+        const convo = doc.data() as Conversation;
+        total += convo.unreadCounts?.[user.uid] || 0;
+      });
+      setTotalUnreadMessages(total);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
 
   const handleOpenChange = async (open: boolean) => {
     setIsSheetOpen(open);
@@ -78,10 +98,15 @@ export function Header() {
       </Link>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <div className="ml-auto flex items-center gap-4">
-           <Button variant="ghost" size="icon" className="rounded-full" asChild>
+           <Button variant="ghost" size="icon" className="rounded-full relative" asChild>
                 <Link href="/dashboard/chat">
                     <MessageSquare className="h-5 w-5" />
                     <span className="sr-only">Messages</span>
+                    {totalUnreadMessages > 0 && (
+                      <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0 text-xs">
+                        {totalUnreadMessages}
+                      </Badge>
+                    )}
                 </Link>
            </Button>
            <Sheet open={isSheetOpen} onOpenChange={handleOpenChange}>

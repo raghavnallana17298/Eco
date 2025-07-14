@@ -11,6 +11,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 function getInitials(name: string = '') {
     return name.split(' ').map(n => n[0]).join('');
@@ -76,6 +77,7 @@ export default function ChatListPage() {
 
                     const otherProfile = convo.participantProfiles[otherParticipantId];
                     const displayName = otherProfile?.plantName || otherProfile?.displayName || "User";
+                    const unreadCount = convo.unreadCounts ? convo.unreadCounts[user?.uid || ''] || 0 : 0;
 
                     return (
                          <li key={convo.id}>
@@ -84,10 +86,13 @@ export default function ChatListPage() {
                                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                                 </Avatar>
                                 <div className="flex-grow">
-                                    <h4 className="font-semibold">{displayName}</h4>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-semibold">{displayName}</h4>
+                                        {unreadCount > 0 && <Badge variant="destructive">{unreadCount}</Badge>}
+                                    </div>
                                     <p className="text-sm text-muted-foreground truncate max-w-md">
                                         {convo.lastMessage ? (
-                                             <span className={convo.lastMessage.senderId === user?.uid ? "" : "font-bold"}>
+                                             <span className={unreadCount > 0 ? "font-bold" : ""}>
                                                 {convo.lastMessage.senderId === user?.uid ? "You: " : ""}
                                                 {convo.lastMessage.text}
                                              </span>

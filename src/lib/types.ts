@@ -69,6 +69,9 @@ export interface Conversation {
   };
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  unreadCounts?: {
+    [uid: string]: number;
+  };
 }
 
 export interface Message {
