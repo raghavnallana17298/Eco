@@ -42,7 +42,7 @@ export default function HomePage() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Recycle className="h-6 w-6 text-accent" />
+            <Recycle className="h-6 w-6 text-accent animate-slow-spin" />
             <span className="text-lg font-bold font-headline">
               Eco<span className="text-primary">Nexus</span>
             </span>
@@ -88,7 +88,7 @@ export default function HomePage() {
               <Card className="flex flex-col text-center items-center">
                 <CardHeader>
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground mb-4">
-                    <Package className="h-8 w-8" />
+                    <Package className="h-8 w-8 animate-float" />
                   </div>
                   <CardTitle className="text-2xl">For Industrialists</CardTitle>
                   <CardDescription>Raise waste pickup requests in minutes and find certified recyclers near you.</CardDescription>
@@ -103,7 +103,7 @@ export default function HomePage() {
               <Card className="flex flex-col text-center items-center">
                 <CardHeader>
                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground mb-4">
-                    <Recycle className="h-8 w-8" />
+                    <Recycle className="h-8 w-8 animate-float" />
                   </div>
                   <CardTitle className="text-2xl">For Recycling Plants</CardTitle>
                   <CardDescription>Accept waste orders, manage your inventory of recycled materials, and grow your business.</CardDescription>
@@ -118,7 +118,7 @@ export default function HomePage() {
               <Card className="flex flex-col text-center items-center">
                 <CardHeader>
                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground mb-4">
-                    <Truck className="h-8 w-8" />
+                    <Truck className="h-8 w-8 animate-float" />
                   </div>
                   <CardTitle className="text-2xl">For Transporters</CardTitle>
                   <CardDescription>Find and take up transport jobs for waste pickup and delivery with optimized routes.</CardDescription>
