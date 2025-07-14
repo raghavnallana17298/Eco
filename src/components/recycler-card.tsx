@@ -1,8 +1,10 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { UserProfile } from "@/lib/types";
-import { Building, Mail, MapPin, Package, User } from "lucide-react";
+import { Building, Mail, MapPin, Package, User, MessageSquare } from "lucide-react";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
 
 type RecyclerCardProps = {
   recycler: UserProfile;
@@ -10,7 +12,7 @@ type RecyclerCardProps = {
 
 export function RecyclerCard({ recycler }: RecyclerCardProps) {
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Building className="text-accent" />
@@ -18,7 +20,7 @@ export function RecyclerCard({ recycler }: RecyclerCardProps) {
         </CardTitle>
         <CardDescription>Recycling Facility</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 text-sm">
+      <CardContent className="space-y-4 text-sm flex-grow">
         <div className="space-y-2 text-muted-foreground">
           {recycler.displayName && (
             <div className="flex items-center gap-2">
@@ -35,7 +37,7 @@ export function RecyclerCard({ recycler }: RecyclerCardProps) {
           {recycler.email && (
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4" />
-              <a href={`mailto:${recycler.email}`} className="hover:text-primary transition-colors">
+              <a href={`mailto:${recycler.email}`} className="hover:text-primary transition-colors truncate">
                 {recycler.email}
               </a>
             </div>
@@ -56,6 +58,13 @@ export function RecyclerCard({ recycler }: RecyclerCardProps) {
           </div>
         )}
       </CardContent>
+      <Separator />
+      <CardFooter className="p-4">
+          <Button variant="outline" className="w-full">
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Message
+          </Button>
+      </CardFooter>
     </Card>
   );
 }

@@ -31,13 +31,18 @@ export const onWasteRequestAccepted = onDocumentUpdated(
     // Check if the status changed from 'pending' to 'accepted'
     if (beforeData?.status === "pending" && afterData?.status === "accepted") {
       const industrialistId = afterData.industrialistId;
-      const recyclerName = afterData.recyclerName || "A recycler";
+      const recyclerId = afterData.acceptedByRecyclerId;
       const wasteType = afterData.type;
 
-      if (!industrialistId) {
-        logger.error("Industrialist ID is missing from the waste request.");
+      if (!industrialistId || !recyclerId) {
+        logger.error("Industrialist ID or Recycler ID is missing from the waste request.");
         return;
       }
+      
+      // Get recycler's profile to get their plant name
+      const recyclerDoc = await db.collection("users").doc(recyclerId).get();
+      const recyclerProfile = recyclerDoc.data();
+      const recyclerName = recyclerProfile?.plantName || recyclerProfile?.displayName || "A recycler";
       
       const message = `Your request for ${wasteType} has been accepted by ${recyclerName}.`;
 

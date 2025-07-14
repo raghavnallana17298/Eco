@@ -9,12 +9,13 @@ import { Button } from "../ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
-import type { WasteRequest } from "@/lib/types";
-import { Loader2, Search, MapPin } from "lucide-react";
+import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from "firebase/firestore";
+import type { WasteRequest, UserProfile } from "@/lib/types";
+import { Loader2, Search, MapPin, Truck } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
+import { TransporterCard } from "../transporter-card";
 
 
 const mockInventory = [
@@ -31,6 +32,9 @@ export function RecyclerView() {
   const [isFetchingWaste, setIsFetchingWaste] = useState(true);
   const [requestHistory, setRequestHistory] = useState<WasteRequest[]>([]);
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
+  const [transporters, setTransporters] = useState<UserProfile[]>([]);
+  const [isFetchingTransporters, setIsFetchingTransporters] = useState(true);
+
 
   // Fetch incoming waste requests
   useEffect(() => {
@@ -49,7 +53,10 @@ export function RecyclerView() {
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest))
-        .filter(request => request.industrialistLocation === userProfile.location); // client-side filter
+        .filter(request => {
+          // Basic location matching, could be improved with geocoding
+          return request.industrialistLocation?.toLowerCase().includes(userProfile.location?.toLowerCase() || "");
+        }); 
       
       requestsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setIncomingWaste(requestsData);
@@ -96,6 +103,30 @@ export function RecyclerView() {
 
     return () => unsubscribe();
   }, [user, toast]);
+  
+  // Fetch all Transporters
+  useEffect(() => {
+    async function fetchTransporters() {
+      setIsFetchingTransporters(true);
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("role", "==", "Transporter"));
+        const querySnapshot = await getDocs(q);
+        const usersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+        setTransporters(usersData);
+      } catch (error) {
+        console.error("Error fetching transporters:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not fetch available transporters."
+        });
+      } finally {
+        setIsFetchingTransporters(false);
+      }
+    }
+    fetchTransporters();
+  }, [toast]);
 
 
   const handleAcceptRequest = async (requestId: string) => {
@@ -156,16 +187,17 @@ export function RecyclerView() {
 
   return (
     <Tabs defaultValue="incoming-waste">
-      <TabsList className="grid w-full grid-cols-3 md:w-[600px]">
+      <TabsList className="grid w-full grid-cols-4 md:w-[800px]">
         <TabsTrigger value="incoming-waste">Incoming Waste</TabsTrigger>
         <TabsTrigger value="my-inventory">My Inventory</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>
+        <TabsTrigger value="find-transporters">Find Transporters</TabsTrigger>
       </TabsList>
       <TabsContent value="incoming-waste">
         <Card>
           <CardHeader>
             <CardTitle>Incoming Waste Requests</CardTitle>
-            <CardDescription>These are pending waste pickup requests from industrialists in your area: <strong>{userProfile?.location || 'N/A'}</strong></CardDescription>
+            <CardDescription>These are pending waste pickup requests from industrialists near <strong>{userProfile?.location || 'your area'}</strong></CardDescription>
           </CardHeader>
           <CardContent>
             {isFetchingWaste ? (
@@ -178,6 +210,7 @@ export function RecyclerView() {
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Industrialist</TableHead>
+                    <TableHead>Location</TableHead>
                     <TableHead>Waste Type</TableHead>
                     <TableHead>Quantity (kg)</TableHead>
                     <TableHead className="text-right">Action</TableHead>
@@ -190,6 +223,7 @@ export function RecyclerView() {
                         {request.createdAt ? new Date(request.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell>{request.industrialistName}</TableCell>
+                      <TableCell>{request.industrialistLocation}</TableCell>
                       <TableCell>{request.type}</TableCell>
                       <TableCell>{request.quantity}</TableCell>
                       <TableCell className="text-right">
@@ -290,6 +324,38 @@ export function RecyclerView() {
                 <AlertTitle>No History Found</AlertTitle>
                 <AlertDescription>
                   You have not accepted or completed any waste requests yet.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+      <TabsContent value="find-transporters">
+        <Card>
+          <CardHeader>
+            <CardTitle>All Registered Transporters</CardTitle>
+            <CardDescription>
+             Browse all available transport providers to handle logistics.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isFetchingTransporters ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-4 text-muted-foreground">Searching for transporters...</p>
+              </div>
+            ) : transporters.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {transporters.map(transporter => (
+                  <TransporterCard key={transporter.uid} transporter={transporter} />
+                ))}
+              </div>
+            ) : (
+              <Alert variant="default">
+                <Truck className="h-4 w-4" />
+                <AlertTitle>No Transporters Found</AlertTitle>
+                <AlertDescription>
+                  There are currently no registered transport providers.
                 </AlertDescription>
               </Alert>
             )}

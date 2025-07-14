@@ -1,7 +1,9 @@
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { UserProfile } from "@/lib/types";
-import { Mail, MapPin, Truck, User } from "lucide-react";
+import { Mail, MapPin, Truck, User, MessageSquare } from "lucide-react";
+import { Button } from "./ui/button";
+import { Separator } from "./ui/separator";
 
 type TransporterCardProps = {
   transporter: UserProfile;
@@ -9,7 +11,7 @@ type TransporterCardProps = {
 
 export function TransporterCard({ transporter }: TransporterCardProps) {
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Truck className="text-accent" />
@@ -17,7 +19,7 @@ export function TransporterCard({ transporter }: TransporterCardProps) {
         </CardTitle>
         <CardDescription>Logistics Provider</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 text-sm">
+      <CardContent className="space-y-4 text-sm flex-grow">
         <div className="space-y-2 text-muted-foreground">
           {transporter.location && (
             <div className="flex items-center gap-2">
@@ -28,13 +30,20 @@ export function TransporterCard({ transporter }: TransporterCardProps) {
           {transporter.email && (
             <div className="flex items-center gap-2">
               <Mail className="h-4 w-4" />
-              <a href={`mailto:${transporter.email}`} className="hover:text-primary transition-colors">
+              <a href={`mailto:${transporter.email}`} className="hover:text-primary transition-colors truncate">
                 {transporter.email}
               </a>
             </div>
           )}
         </div>
       </CardContent>
+      <Separator />
+       <CardFooter className="p-4">
+          <Button variant="outline" className="w-full">
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Message
+          </Button>
+      </CardFooter>
     </Card>
   );
 }
