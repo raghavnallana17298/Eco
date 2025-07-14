@@ -13,18 +13,60 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
+  SheetFooter
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { CircleUser, LogOut, Recycle, User, Bell } from "lucide-react";
+import { CircleUser, LogOut, Recycle, User, Bell, CheckCheck } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "./ui/badge";
+import { useState, useEffect } from "react";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot, orderBy, doc, writeBatch } from "firebase/firestore";
+import type { Notification } from "@/lib/types";
+import { Separator } from "./ui/separator";
 
 export function Header() {
-  const { userProfile, signOut } = useAuth();
+  const { userProfile, signOut, user } = useAuth();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const notifsRef = collection(db, "notifications");
+    const q = query(
+      notifsRef,
+      where("userId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Notification));
+      setNotifications(notifsData);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleOpenChange = async (open: boolean) => {
+    setIsSheetOpen(open);
+    if (open && unreadCount > 0) {
+      // Mark all as read
+      const batch = writeBatch(db);
+      notifications.forEach(notif => {
+        if (!notif.read) {
+          const notifRef = doc(db, "notifications", notif.id);
+          batch.update(notifRef, { read: true });
+        }
+      });
+      await batch.commit();
+    }
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6">
@@ -34,25 +76,50 @@ export function Header() {
       </Link>
       <div className="flex w-full items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
         <div className="ml-auto flex items-center gap-4">
-           <Sheet>
+           <Sheet open={isSheetOpen} onOpenChange={handleOpenChange}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full relative">
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Toggle notifications</span>
-                 {/* This is a placeholder for the notification count badge */}
-                 {/* <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 w-4 justify-center p-0">3</Badge> */}
+                 {unreadCount > 0 && (
+                   <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 justify-center p-0 text-xs">
+                     {unreadCount}
+                   </Badge>
+                 )}
               </Button>
             </SheetTrigger>
             <SheetContent>
               <SheetHeader>
                 <SheetTitle>Notifications</SheetTitle>
-                <SheetDescription>
-                  You have no new notifications.
-                </SheetDescription>
               </SheetHeader>
-              <div className="mt-4">
-                {/* Notifications list will go here */}
+              <div className="mt-4 space-y-4">
+                {notifications.length > 0 ? (
+                  notifications.map(notif => (
+                    <div key={notif.id} className="flex flex-col gap-2">
+                       <Link href={notif.link || "#"} className="space-y-1" onClick={() => setIsSheetOpen(false)}>
+                        <p className={`text-sm font-medium ${!notif.read ? 'text-foreground' : 'text-muted-foreground'}`}>{notif.message}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(notif.createdAt.seconds * 1000).toLocaleString()}
+                        </p>
+                      </Link>
+                      <Separator />
+                    </div>
+                  ))
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center h-48">
+                    <Bell className="h-12 w-12 text-muted-foreground" />
+                    <p className="mt-4 text-muted-foreground">You have no new notifications.</p>
+                  </div>
+                )}
               </div>
+               {notifications.length > 0 && (
+                <SheetFooter className="mt-4">
+                  <Button variant="outline" size="sm" disabled>
+                    <CheckCheck className="mr-2 h-4 w-4" />
+                    Mark all as read
+                  </Button>
+                </SheetFooter>
+              )}
             </SheetContent>
           </Sheet>
           <DropdownMenu>
