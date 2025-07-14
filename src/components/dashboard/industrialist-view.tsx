@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import type { UserProfile, WasteRequest } from "@/lib/types";
 import { RecyclerCard } from "@/components/recycler-card";
 
@@ -78,10 +78,12 @@ export function IndustrialistView() {
 
     setIsFetchingRequests(true);
     const requestsRef = collection(db, "wasteRequests");
-    const q = query(requestsRef, where("industrialistId", "==", user.uid), orderBy("createdAt", "desc"));
+    const q = query(requestsRef, where("industrialistId", "==", user.uid));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
+      // Sort on the client-side
+      requestsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
       setMyRequests(requestsData);
       setIsFetchingRequests(false);
     }, (error) => {
