@@ -32,7 +32,7 @@ export function TransporterView() {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-            jobsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            // No client-side sort needed as there's no orderBy in the query
             setAvailableJobs(jobsData);
             setIsFetchingAvailable(false);
         }, (error) => {
@@ -46,14 +46,17 @@ export function TransporterView() {
 
     // Fetch jobs accepted by the current transporter
     useEffect(() => {
-        if (!user) return;
+        if (!user) {
+             setIsFetchingMine(false);
+             return;
+        }
         setIsFetchingMine(true);
         const requestsRef = collection(db, "wasteRequests");
         const q = query(requestsRef, where("transportedById", "==", user.uid));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-             jobsData.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+            // No client-side sort needed as there's no orderBy in the query
             setMyJobs(jobsData);
             setIsFetchingMine(false);
         }, (error) => {
@@ -78,7 +81,7 @@ export function TransporterView() {
             });
             toast({
                 title: "Job Accepted",
-                description: "The job has been added to your list.",
+                description: "The job has been added to your list and the parties have been notified.",
             });
         } catch (error: any) {
             toast({
@@ -119,37 +122,39 @@ export function TransporterView() {
         }
 
         return (
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Waste Type</TableHead>
-                        <TableHead>From</TableHead>
-                        <TableHead>To</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Action</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {jobs.map((job) => (
-                        <TableRow key={job.id}>
-                            <TableCell>{job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
-                            <TableCell>{job.type}</TableCell>
-                            <TableCell>{job.industrialistLocation}</TableCell>
-                            <TableCell>{job.recyclerName}</TableCell>
-                            <TableCell><Badge variant={statusVariant(job.status)} className="capitalize">{job.status}</Badge></TableCell>
-                            <TableCell className="text-right">
-                                {showAcceptButton && (
-                                    <Button variant="outline" size="sm" onClick={() => handleAcceptJob(job.id)}>
-                                        Accept Job
-                                    </Button>
-                                )}
-                                {!showAcceptButton && <Button variant="outline" size="sm" disabled>View Details</Button>}
-                            </TableCell>
+            <div className="overflow-x-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Waste Type</TableHead>
+                            <TableHead>From (Industrialist)</TableHead>
+                            <TableHead>To (Recycler)</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                    </TableHeader>
+                    <TableBody>
+                        {jobs.map((job) => (
+                            <TableRow key={job.id}>
+                                <TableCell>{job.updatedAt ? new Date(job.updatedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                                <TableCell>{job.type}</TableCell>
+                                <TableCell>{job.industrialistLocation}</TableCell>
+                                <TableCell>{job.recyclerName}</TableCell>
+                                <TableCell><Badge variant={statusVariant(job.status)} className="capitalize">{job.status}</Badge></TableCell>
+                                <TableCell className="text-right">
+                                    {showAcceptButton && job.status === 'accepted' && (
+                                        <Button variant="outline" size="sm" onClick={() => handleAcceptJob(job.id)}>
+                                            Accept Job
+                                        </Button>
+                                    )}
+                                    {!showAcceptButton && <Button variant="ghost" size="sm" disabled>Details</Button>}
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </div>
         );
     };
 
