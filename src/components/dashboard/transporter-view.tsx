@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDocs } from "firebase/firestore";
 import type { WasteRequest } from "@/lib/types";
 import { Loader2, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -56,7 +56,7 @@ export function TransporterView() {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-            jobsData.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+            jobsData.sort((a, b) => (b.updatedAt?.seconds || b.createdAt?.seconds || 0) - (a.updatedAt?.seconds || b.createdAt?.seconds || 0));
             setMyJobs(jobsData);
             setIsFetchingMine(false);
         }, (error) => {
@@ -73,6 +73,17 @@ export function TransporterView() {
 
         const requestRef = doc(db, "wasteRequests", requestId);
         try {
+            // Check if job is still available
+            const requestDoc = await getDocs(query(collection(db, "wasteRequests"), where("id", "==", requestId), where("status", "==", "accepted")));
+            if(requestDoc.empty) {
+                toast({
+                    variant: "destructive",
+                    title: "Job Taken",
+                    description: "This job has already been accepted by another transporter.",
+                });
+                return;
+            }
+
             await updateDoc(requestRef, {
                 status: "in-transit",
                 transportedById: user.uid,
@@ -137,7 +148,7 @@ export function TransporterView() {
                     <TableBody>
                         {jobs.map((job) => (
                             <TableRow key={job.id}>
-                                <TableCell>{job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                                <TableCell>{job.updatedAt ? new Date(job.updatedAt.seconds * 1000).toLocaleDateString() : (job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 'N/A')}</TableCell>
                                 <TableCell>{job.type}</TableCell>
                                 <TableCell>{job.industrialistLocation}</TableCell>
                                 <TableCell>{job.recyclerName}</TableCell>
@@ -188,5 +199,3 @@ export function TransporterView() {
         </Tabs>
     );
 }
-
-    

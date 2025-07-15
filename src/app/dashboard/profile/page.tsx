@@ -74,7 +74,9 @@ export default function ProfilePage() {
 
     if (input.trim() !== "") {
       const currentItems = form.getValues(formField) || [];
-      form.setValue(formField, [...currentItems, input.trim()], { shouldDirty: true });
+      if (!currentItems.includes(input.trim())) {
+        form.setValue(formField, [...currentItems, input.trim()], { shouldDirty: true });
+      }
       setInput("");
     }
   };
@@ -89,20 +91,24 @@ export default function ProfilePage() {
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     setLoading(true);
     try {
-      // Ensure role-specific fields are only sent for the correct roles
       const dataToUpdate: Partial<z.infer<typeof profileSchema>> = {
-        ...values,
-        plantName: userProfile?.role === 'Recycler' ? values.plantName : undefined,
-        materials: userProfile?.role === 'Recycler' ? values.materials : undefined,
-        vehicleTypes: userProfile?.role === 'Transporter' ? values.vehicleTypes : undefined,
+        displayName: values.displayName,
+        location: values.location,
       };
+
+      if (userProfile?.role === 'Recycler') {
+        dataToUpdate.plantName = values.plantName;
+        dataToUpdate.materials = values.materials;
+      } else if (userProfile?.role === 'Transporter') {
+        dataToUpdate.vehicleTypes = values.vehicleTypes;
+      }
 
       await updateUserProfile(dataToUpdate);
       toast({
         title: "Success",
         description: "Your profile has been updated.",
       });
-      form.reset(values, { keepValues: true }); 
+      form.reset(values, { keepValues: true, keepDirty: false }); 
     } catch (error: any) {
       toast({
         variant: "destructive",
