@@ -28,7 +28,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Invalid email address." }),
@@ -92,13 +91,14 @@ export function AuthForm() {
     setLoading(true);
     try {
       await signInWithGoogle();
+      // The redirect will handle the rest, so we don't need to setLoading(false) here
+      // unless an error is caught.
     } catch (error: any) {
       toast({
         variant: "destructive",
         title: "Google Sign-In Failed",
         description: error.message,
       });
-    } finally {
       setLoading(false);
     }
   }
@@ -192,21 +192,10 @@ export function AuthForm() {
               <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
             </div>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="w-full">
-                  <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled>
-                    <GoogleIcon className="mr-2 h-5 w-5" />
-                    Google
-                  </Button>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Google Sign-In is temporarily disabled due to a configuration issue.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={loading}>
+            {loading && activeTab === 'login' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleIcon className="mr-2 h-5 w-5" />}
+            Google
+          </Button>
         </CardContent>
       </Tabs>
     </Card>
