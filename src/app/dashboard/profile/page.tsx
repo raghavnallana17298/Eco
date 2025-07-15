@@ -34,12 +34,14 @@ const profileSchema = z.object({
   plantName: z.string().optional(),
   location: z.string().min(3, { message: "Location must be at least 3 characters." }),
   materials: z.array(z.string()).optional(),
+  vehicleTypes: z.array(z.string()).optional(),
 });
 
 export default function ProfilePage() {
   const { userProfile, updateUserProfile } = useAuth();
   const [loading, setLoading] = useState(false);
   const [materialInput, setMaterialInput] = useState("");
+  const [vehicleInput, setVehicleInput] = useState("");
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof profileSchema>>({
@@ -49,6 +51,7 @@ export default function ProfilePage() {
       plantName: "",
       location: "",
       materials: [],
+      vehicleTypes: [],
     },
   });
 
@@ -59,30 +62,39 @@ export default function ProfilePage() {
         plantName: userProfile.plantName || "",
         location: userProfile.location || "",
         materials: userProfile.materials || [],
+        vehicleTypes: userProfile.vehicleTypes || [],
       });
     }
   }, [userProfile, form]);
 
-  const handleAddMaterial = () => {
-    if (materialInput.trim() !== "") {
-      const currentMaterials = form.getValues("materials") || [];
-      form.setValue("materials", [...currentMaterials, materialInput.trim()], { shouldDirty: true });
-      setMaterialInput("");
+  const handleAddItem = (type: 'material' | 'vehicle') => {
+    const input = type === 'material' ? materialInput : vehicleInput;
+    const formField = type === 'material' ? 'materials' : 'vehicleTypes';
+    const setInput = type === 'material' ? setMaterialInput : setVehicleInput;
+
+    if (input.trim() !== "") {
+      const currentItems = form.getValues(formField) || [];
+      form.setValue(formField, [...currentItems, input.trim()], { shouldDirty: true });
+      setInput("");
     }
   };
 
-  const handleRemoveMaterial = (materialToRemove: string) => {
-    const currentMaterials = form.getValues("materials") || [];
-    form.setValue("materials", currentMaterials.filter(m => m !== materialToRemove), { shouldDirty: true });
+  const handleRemoveItem = (itemToRemove: string, type: 'material' | 'vehicle') => {
+    const formField = type === 'material' ? 'materials' : 'vehicleTypes';
+    const currentItems = form.getValues(formField) || [];
+    form.setValue(formField, currentItems.filter(item => item !== itemToRemove), { shouldDirty: true });
   };
+
 
   async function onSubmit(values: z.infer<typeof profileSchema>) {
     setLoading(true);
     try {
-      // Ensure plantName is only sent for Recyclers
+      // Ensure role-specific fields are only sent for the correct roles
       const dataToUpdate: Partial<z.infer<typeof profileSchema>> = {
         ...values,
         plantName: userProfile?.role === 'Recycler' ? values.plantName : undefined,
+        materials: userProfile?.role === 'Recycler' ? values.materials : undefined,
+        vehicleTypes: userProfile?.role === 'Transporter' ? values.vehicleTypes : undefined,
       };
 
       await updateUserProfile(dataToUpdate);
@@ -121,7 +133,7 @@ export default function ProfilePage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>
-                      {userProfile?.role === 'Recycler' ? "Owner's Full Name" : "Full Name"}
+                      {userProfile?.role === 'Recycler' ? "Owner's Full Name" : (userProfile?.role === 'Transporter' ? "Company/Owner Name" : "Full Name")}
                     </FormLabel>
                     <FormControl>
                       <Input placeholder="Your full name" {...field} />
@@ -150,7 +162,7 @@ export default function ProfilePage() {
                 name="location"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>My Location</FormLabel>
+                    <FormLabel>Location / Operating Area</FormLabel>
                     <FormControl>
                       <Input placeholder="e.g., City, Postal Code" {...field} />
                     </FormControl>
@@ -176,11 +188,11 @@ export default function ProfilePage() {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
-                              handleAddMaterial();
+                              handleAddItem('material');
                             }
                           }}
                         />
-                        <Button type="button" variant="outline" onClick={handleAddMaterial}>Add</Button>
+                        <Button type="button" variant="outline" onClick={() => handleAddItem('material')}>Add</Button>
                       </div>
                       <div className="flex flex-wrap gap-2 pt-2">
                         {field.value?.map((material) => (
@@ -189,7 +201,50 @@ export default function ProfilePage() {
                             <button
                               type="button"
                               className="ml-2 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                              onClick={() => handleRemoveMaterial(material)}
+                              onClick={() => handleRemoveItem(material, 'material')}
+                            >
+                              <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+               {userProfile?.role === 'Transporter' && (
+                 <FormField
+                  control={form.control}
+                  name="vehicleTypes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vehicle Types</FormLabel>
+                      <FormDescription>
+                        Enter the types of vehicles you operate (e.g., Small Truck, Large Lorry).
+                      </FormDescription>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={vehicleInput}
+                          onChange={(e) => setVehicleInput(e.target.value)}
+                          placeholder="e.g., Cargo Van"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddItem('vehicle');
+                            }
+                          }}
+                        />
+                        <Button type="button" variant="outline" onClick={() => handleAddItem('vehicle')}>Add</Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {field.value?.map((vehicle) => (
+                          <Badge key={vehicle} variant="secondary">
+                            {vehicle}
+                            <button
+                              type="button"
+                              className="ml-2 rounded-full outline-none ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                              onClick={() => handleRemoveItem(vehicle, 'vehicle')}
                             >
                               <X className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                             </button>

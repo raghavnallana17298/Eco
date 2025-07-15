@@ -16,7 +16,7 @@ interface AuthContextType {
   signUpWithEmail: (name: string, email: string, pass: string, role: UserRole) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateUserProfile: (data: Partial<Pick<UserProfile, 'displayName' | 'plantName' | 'location' | 'materials'>>) => Promise<void>;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               role: 'Industrialist', 
               location: '',
               materials: [],
+              vehicleTypes: [],
             };
             await setDoc(userDocRef, newUserProfile);
           }
@@ -99,6 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         role,
         location: '',
         materials: role === 'Recycler' ? [] : undefined,
+        vehicleTypes: role === 'Transporter' ? [] : undefined,
       };
       await setDoc(doc(db, 'users', user.uid), newUserProfile);
       setUserProfile(newUserProfile);
@@ -117,27 +119,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const updateUserProfile = async (data: Partial<Pick<UserProfile, 'displayName' | 'plantName' | 'location' | 'materials'>>) => {
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
     if (!user) {
       throw new Error("You must be logged in to update your profile.");
     }
     
-    const dataToUpdate: Partial<UserProfile> = {};
-    if (data.displayName !== undefined) {
-      dataToUpdate.displayName = data.displayName;
-    }
-    if (data.plantName !== undefined) {
-      dataToUpdate.plantName = data.plantName;
-    }
-    if (data.location !== undefined) {
-      dataToUpdate.location = data.location;
-    }
-     if (data.materials !== undefined) {
-      dataToUpdate.materials = data.materials;
-    }
+    // Create a new object with only the defined values from the input
+    const dataToUpdate: Partial<UserProfile> = Object.entries(data).reduce((acc, [key, value]) => {
+      if (value !== undefined) {
+        acc[key as keyof UserProfile] = value;
+      }
+      return acc;
+    }, {} as Partial<UserProfile>);
+
 
     if (Object.keys(dataToUpdate).length === 0) {
-      return; 
+      return; // No valid fields to update
     }
 
     try {

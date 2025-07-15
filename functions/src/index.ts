@@ -19,7 +19,7 @@ initializeApp();
 const db = getFirestore();
 
 
-// Function to create a notification when a waste request is accepted
+// Function to create a notification when a waste request is accepted by a recycler
 export const onWasteRequestAccepted = onDocumentUpdated(
   "wasteRequests/{requestId}",
   async (event) => {
@@ -46,7 +46,7 @@ export const onWasteRequestAccepted = onDocumentUpdated(
       
       const message = `Your request for ${wasteType} has been accepted by ${recyclerName}.`;
 
-      // Create a notification document
+      // Create a notification document for the industrialist
       try {
         await db.collection("notifications").add({
           userId: industrialistId,
@@ -55,12 +55,63 @@ export const onWasteRequestAccepted = onDocumentUpdated(
           createdAt: FieldValue.serverTimestamp(),
           link: `/dashboard` 
         });
-        logger.info(`Notification created for user ${industrialistId}: ${message}`);
+        logger.info(`Notification created for industrialist ${industrialistId}: ${message}`);
       } catch (error) {
-        logger.error("Error creating notification:", error);
+        logger.error("Error creating notification for industrialist:", error);
       }
     }
   }
+);
+
+// Function to create notifications when a transporter accepts a job
+export const onJobAccepted = onDocumentUpdated(
+    "wasteRequests/{requestId}",
+    async (event) => {
+        logger.info("Function onJobAccepted triggered for request:", event.params.requestId);
+
+        const beforeData = event.data?.before.data();
+        const afterData = event.data?.after.data();
+
+        // Check if the status changed from 'accepted' to 'in-transit'
+        if (beforeData?.status === "accepted" && afterData?.status === "in-transit") {
+            const industrialistId = afterData.industrialistId;
+            const recyclerId = afterData.acceptedByRecyclerId;
+            const transporterName = afterData.transporterName || "A transporter";
+            const wasteType = afterData.type;
+
+            if (!industrialistId || !recyclerId) {
+                logger.error("Industrialist or Recycler ID is missing.");
+                return;
+            }
+
+            const message = `${transporterName} is on their way to pick up the ${wasteType} waste.`;
+
+            // Create notification for the industrialist
+            const industrialistNotification = db.collection("notifications").add({
+                userId: industrialistId,
+                message: message,
+                read: false,
+                createdAt: FieldValue.serverTimestamp(),
+                link: `/dashboard`
+            });
+
+            // Create notification for the recycler
+            const recyclerNotification = db.collection("notifications").add({
+                userId: recyclerId,
+                message: message,
+                read: false,
+                createdAt: FieldValue.serverTimestamp(),
+                link: `/dashboard`
+            });
+
+            try {
+                await Promise.all([industrialistNotification, recyclerNotification]);
+                logger.info(`Notifications sent to industrialist ${industrialistId} and recycler ${recyclerId}.`);
+            } catch (error) {
+                logger.error("Error creating notifications for job acceptance:", error);
+            }
+        }
+    }
 );
 
 
@@ -113,5 +164,3 @@ export const onNewRecycledMaterial = onDocumentCreated(
     }
   }
 );
-
-    

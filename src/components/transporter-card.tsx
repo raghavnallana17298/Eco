@@ -3,11 +3,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { UserProfile } from "@/lib/types";
-import { Mail, MapPin, Truck, User, MessageSquare } from "lucide-react";
+import { Mail, MapPin, Truck, User, MessageSquare, Car } from "lucide-react";
 import { Button } from "./ui/button";
 import { Separator } from "./ui/separator";
 import { startConversation } from "@/lib/actions";
 import { useAuth } from "@/contexts/auth-context";
+import { Badge } from "./ui/badge";
 
 
 type TransporterCardProps = {
@@ -43,6 +44,19 @@ export function TransporterCard({ transporter }: TransporterCardProps) {
             </div>
           )}
         </div>
+         {transporter.vehicleTypes && transporter.vehicleTypes.length > 0 && (
+          <div>
+            <h4 className="flex items-center gap-2 font-semibold text-foreground mb-2">
+              <Car className="h-4 w-4" />
+              Vehicle Types:
+            </h4>
+            <div className="flex flex-wrap gap-2">
+              {transporter.vehicleTypes.map(vehicle => (
+                <Badge key={vehicle} variant="outline">{vehicle}</Badge>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
       <Separator />
        <CardFooter className="p-4">

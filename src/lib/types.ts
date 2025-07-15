@@ -10,6 +10,7 @@ export interface UserProfile {
   role: UserRole;
   location?: string; // Manual location: city, area, or postal code
   materials?: string[]; // For Recyclers: materials they accept
+  vehicleTypes?: string[]; // For Transporters: types of vehicles they operate
 }
 
 export interface WasteRequest {
@@ -27,6 +28,7 @@ export interface WasteRequest {
   acceptedByRecyclerId?: string;
   recyclerName?: string;
   transportedById?: string;
+  transporterName?: string;
 }
 
 export interface RecycledMaterial {
@@ -84,5 +86,3 @@ export interface Message {
   text: string;
   createdAt: Timestamp;
 }
-
-    
