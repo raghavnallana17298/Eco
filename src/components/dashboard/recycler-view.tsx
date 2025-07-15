@@ -2,6 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,21 +12,22 @@ import { Button } from "../ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, updateDoc, getDocs } from "firebase/firestore";
-import type { WasteRequest, UserProfile } from "@/lib/types";
-import { Loader2, Search, MapPin, Truck } from "lucide-react";
+import { collection, query, where, onSnapshot, doc, updateDoc, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+import type { WasteRequest, UserProfile, RecycledMaterial } from "@/lib/types";
+import { Loader2, Search, MapPin, Truck, PlusCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import Link from "next/link";
 import { Badge } from "../ui/badge";
 import { TransporterCard } from "../transporter-card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
+import { Input } from "../ui/input";
 
-
-const mockInventory = [
-    { id: 'RM001', type: 'PET Flakes', quantity: 5000, price: 1.25 },
-    { id: 'RM002', type: 'Aluminum Ingots', quantity: 2500, price: 2.50 },
-    { id: 'RM003', type: 'Copper Granules', quantity: 1000, price: 8.75 },
-    { id: 'RM004', type: 'Shredded Paper', quantity: 10000, price: 0.50 },
-];
+const recycledMaterialSchema = z.object({
+  type: z.string().min(2, "Material type is required."),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1."),
+  price: z.coerce.number().min(0.01, "Price must be greater than 0."),
+});
 
 export function RecyclerView() {
   const { user, userProfile } = useAuth();
@@ -34,6 +38,19 @@ export function RecyclerView() {
   const [isFetchingHistory, setIsFetchingHistory] = useState(true);
   const [transporters, setTransporters] = useState<UserProfile[]>([]);
   const [isFetchingTransporters, setIsFetchingTransporters] = useState(true);
+  const [inventory, setInventory] = useState<RecycledMaterial[]>([]);
+  const [isFetchingInventory, setIsFetchingInventory] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const form = useForm<z.infer<typeof recycledMaterialSchema>>({
+    resolver: zodResolver(recycledMaterialSchema),
+    defaultValues: {
+      type: "",
+      quantity: 0,
+      price: 0,
+    },
+  });
 
 
   // Fetch incoming waste requests
@@ -51,10 +68,9 @@ export function RecyclerView() {
       where("status", "==", "pending")
     );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const requestsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const requestsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest))
         .filter(request => {
-          // Basic location matching, could be improved with geocoding
           return request.industrialistLocation?.toLowerCase().includes(userProfile.location?.toLowerCase() || "");
         }); 
       
@@ -88,7 +104,7 @@ export function RecyclerView() {
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const historyData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-      historyData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      historyData.sort((a, b) => (b.updatedAt?.seconds || b.createdAt?.seconds || 0) - (a.updatedAt?.seconds || a.createdAt?.seconds || 0));
       setRequestHistory(historyData);
       setIsFetchingHistory(false);
     }, (error) => {
@@ -104,6 +120,27 @@ export function RecyclerView() {
     return () => unsubscribe();
   }, [user, toast]);
   
+  // Fetch recycler's inventory
+  useEffect(() => {
+    if (!user) return;
+
+    setIsFetchingInventory(true);
+    const inventoryRef = collection(db, "recycledMaterials");
+    const q = query(inventoryRef, where("recyclerId", "==", user.uid));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const inventoryData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecycledMaterial));
+      inventoryData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setInventory(inventoryData);
+      setIsFetchingInventory(false);
+    }, (error) => {
+      console.error("Error fetching inventory:", error);
+      setIsFetchingInventory(false);
+    });
+    
+    return () => unsubscribe();
+  }, [user]);
+
   // Fetch all Transporters
   useEffect(() => {
     async function fetchTransporters() {
@@ -138,6 +175,7 @@ export function RecyclerView() {
         status: "accepted",
         acceptedByRecyclerId: user.uid,
         recyclerName: userProfile.plantName || userProfile.displayName,
+        updatedAt: serverTimestamp(),
       });
       toast({
         title: "Request Accepted",
@@ -151,6 +189,34 @@ export function RecyclerView() {
       });
     }
   };
+  
+  async function onAddMaterial(values: z.infer<typeof recycledMaterialSchema>) {
+    if (!user) {
+      toast({ variant: "destructive", title: "Error", description: "Authentication error."});
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await addDoc(collection(db, "recycledMaterials"), {
+        recyclerId: user.uid,
+        type: values.type,
+        quantity: values.quantity,
+        price: values.price,
+        status: 'available',
+        createdAt: serverTimestamp(),
+      });
+      toast({
+        title: "Material Added",
+        description: `${values.type} has been added to your inventory. Industrialists will be notified.`
+      });
+      form.reset();
+      setIsDialogOpen(false);
+    } catch (error: any) {
+      toast({ variant: "destructive", title: "Failed to add material", description: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   if (!userProfile?.location) {
     return (
@@ -254,29 +320,90 @@ export function RecyclerView() {
               <CardTitle>My Recycled Materials</CardTitle>
               <CardDescription>This is your current inventory of processed, ready-to-sell materials.</CardDescription>
             </div>
-            <Button>Add New Material</Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <PlusCircle className="mr-2"/>
+                  Add New Material
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Recycled Material</DialogTitle>
+                  <DialogDescription>
+                    Fill in the details of the material you have processed and want to list for sale.
+                  </DialogDescription>
+                </DialogHeader>
+                 <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onAddMaterial)} className="space-y-4">
+                    <FormField control={form.control} name="type" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Material Type</FormLabel>
+                        <FormControl><Input placeholder="e.g., PET Flakes" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <FormField control={form.control} name="quantity" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity (in kg)</FormLabel>
+                        <FormControl><Input type="number" placeholder="5000" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                     <FormField control={form.control} name="price" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price per kg ($)</FormLabel>
+                        <FormControl><Input type="number" placeholder="1.25" step="0.01" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                    <DialogFooter>
+                      <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Add Material
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
-             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Material ID</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity (kg)</TableHead>
-                  <TableHead className="text-right">Price/kg ($)</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockInventory.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.id}</TableCell>
-                    <TableCell>{item.type}</TableCell>
-                    <TableCell>{item.quantity.toLocaleString()}</TableCell>
-                    <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
+            {isFetchingInventory ? (
+              <div className="flex items-center justify-center py-8"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
+            ) : inventory.length > 0 ? (
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date Added</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Quantity (kg)</TableHead>
+                    <TableHead>Price/kg ($)</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {inventory.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.createdAt ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                      <TableCell>{item.type}</TableCell>
+                      <TableCell>{item.quantity.toLocaleString()}</TableCell>
+                      <TableCell>${item.price.toFixed(2)}</TableCell>
+                       <TableCell><Badge variant="outline" className="capitalize">{item.status}</Badge></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+               <Alert variant="default">
+                <Search className="h-4 w-4" />
+                <AlertTitle>No Inventory Found</AlertTitle>
+                <AlertDescription>
+                  You haven't added any recycled materials yet. Click "Add New Material" to get started.
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       </TabsContent>
@@ -306,7 +433,7 @@ export function RecyclerView() {
                   {requestHistory.map((request) => (
                     <TableRow key={request.id}>
                        <TableCell>
-                        {request.createdAt ? new Date(request.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                        {request.updatedAt ? new Date(request.updatedAt.seconds * 1000).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell>{request.industrialistName}</TableCell>
                       <TableCell>{request.type}</TableCell>
@@ -365,3 +492,5 @@ export function RecyclerView() {
     </Tabs>
   );
 }
+
+    

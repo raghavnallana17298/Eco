@@ -7,7 +7,7 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
@@ -62,3 +62,56 @@ export const onWasteRequestAccepted = onDocumentUpdated(
     }
   }
 );
+
+
+// Function to notify industrialists when a new recycled material is added
+export const onNewRecycledMaterial = onDocumentCreated(
+  "recycledMaterials/{materialId}",
+  async (event) => {
+    const materialData = event.data?.data();
+    if (!materialData) {
+      logger.info("No data associated with the event");
+      return;
+    }
+
+    const materialType = materialData.type;
+    const recyclerId = materialData.recyclerId;
+
+    // Get recycler's profile to get their plant name
+    const recyclerDoc = await db.collection("users").doc(recyclerId).get();
+    const recyclerProfile = recyclerDoc.data();
+    const recyclerName = recyclerProfile?.plantName || recyclerProfile?.displayName || "A recycler";
+
+    const message = `New material available: ${materialType} from ${recyclerName}.`;
+
+    // Get all industrialists
+    try {
+      const industrialistsSnapshot = await db.collection("users").where("role", "==", "Industrialist").get();
+      if (industrialistsSnapshot.empty) {
+        logger.info("No industrialists found to notify.");
+        return;
+      }
+
+      const batch = db.batch();
+      industrialistsSnapshot.forEach(doc => {
+        const industrialistId = doc.id;
+        const notificationRef = db.collection("notifications").doc();
+        batch.set(notificationRef, {
+          userId: industrialistId,
+          message: message,
+          read: false,
+          createdAt: FieldValue.serverTimestamp(),
+          link: "/dashboard" // Or a link to a marketplace page
+        });
+      });
+
+      await batch.commit();
+      logger.info(`Notifications sent to ${industrialistsSnapshot.size} industrialists.`);
+
+    } catch (error) {
+      logger.error("Error sending notifications to industrialists:", error);
+    }
+  }
+);
+
+    

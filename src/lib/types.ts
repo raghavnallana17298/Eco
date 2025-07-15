@@ -23,6 +23,7 @@ export interface WasteRequest {
   notes?: string;
   status: 'pending' | 'accepted' | 'in-transit' | 'completed' | 'cancelled';
   createdAt: Timestamp;
+  updatedAt?: Timestamp;
   acceptedByRecyclerId?: string;
   recyclerName?: string;
   transportedById?: string;
@@ -36,6 +37,8 @@ export interface RecycledMaterial {
   price: number; // per kg
   imageUrl?: string;
   createdAt: Timestamp;
+  status: 'available' | 'sold';
+  purchasedByIndustrialistId?: string;
 }
 
 export interface TransportJob {
@@ -81,3 +84,5 @@ export interface Message {
   text: string;
   createdAt: Timestamp;
 }
+
+    
