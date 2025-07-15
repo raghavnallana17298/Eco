@@ -17,7 +17,7 @@ export default function AboutPage() {
               Eco<span className="text-primary">Nexus</span>
             </span>
           </Link>
-          <nav className="flex items-center gap-4">
+          <nav className="flex items-center gap-2 sm:gap-4">
             <Button variant="ghost" asChild>
               <Link href="/login">Sign In</Link>
             </Button>
@@ -30,18 +30,18 @@ export default function AboutPage() {
 
       {/* Main Content */}
       <main className="flex-grow">
-        <section className="py-16 md:py-24">
+        <section className="py-12 md:py-20">
           <div className="container mx-auto px-4">
             <div className="text-center">
-              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl font-headline">
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl font-headline">
                 About EcoNexus
               </h1>
-              <p className="mx-auto mt-4 max-w-[800px] text-lg text-muted-foreground md:text-xl">
+              <p className="mx-auto mt-4 max-w-[800px] text-md text-muted-foreground md:text-lg">
                 We are on a mission to revolutionize the recycling industry by creating seamless connections between waste producers, recyclers, and transporters.
               </p>
             </div>
             
-            <div className="mt-16 grid md:grid-cols-2 gap-12 items-center">
+            <div className="mt-12 grid md:grid-cols-2 gap-8 md:gap-12 items-center">
               <div>
                 <img
                   src="https://placehold.co/600x500.png"
@@ -54,7 +54,7 @@ export default function AboutPage() {
                 <div className="flex gap-4">
                   <Target className="h-10 w-10 text-accent flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="text-2xl font-bold">Our Mission</h3>
+                    <h3 className="text-xl font-bold">Our Mission</h3>
                     <p className="text-muted-foreground mt-2">
                       To build a comprehensive digital ecosystem that streamlines the recycling supply chain, making it more efficient, transparent, and profitable for all stakeholders. We aim to reduce industrial waste by making recycling an easy and accessible option for businesses of all sizes.
                     </p>
@@ -63,7 +63,7 @@ export default function AboutPage() {
                  <div className="flex gap-4">
                   <Handshake className="h-10 w-10 text-accent flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="text-2xl font-bold">Our Vision</h3>
+                    <h3 className="text-xl font-bold">Our Vision</h3>
                     <p className="text-muted-foreground mt-2">
                       We envision a world where industrial waste is minimized and recycling is maximized, contributing to a circular economy and a healthier planet. EcoNexus strives to be the central nervous system for the recycling industry, fostering collaboration and innovation.
                     </p>
@@ -72,7 +72,7 @@ export default function AboutPage() {
                  <div className="flex gap-4">
                   <Leaf className="h-10 w-10 text-accent flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="text-2xl font-bold">Our Values</h3>
+                    <h3 className="text-xl font-bold">Our Values</h3>
                     <p className="text-muted-foreground mt-2">
                       Sustainability, efficiency, and collaboration are at the core of everything we do. We believe that technology can be a powerful force for positive environmental change, and we are committed to building a platform that serves both our users and the planet.
                     </p>
