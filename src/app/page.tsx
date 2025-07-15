@@ -8,6 +8,7 @@ import { Package, Recycle, Truck, CheckCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -150,10 +151,11 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1594883988630-f56a634125b4?q=80&w=600&h=400&fit=crop&crop=entropy"
                 alt="Hands holding different types of recyclable materials like plastic bottles and cardboard"
-                data-ai-hint="recycling materials"
+                width={600}
+                height={400}
                 className="rounded-lg shadow-xl"
               />
             </div>
