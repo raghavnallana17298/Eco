@@ -119,17 +119,28 @@ export const onJobAccepted = onDocumentUpdated(
 export const onNewRecycledMaterial = onDocumentCreated(
   "recycledMaterials/{materialId}",
   async (event) => {
+    logger.info("Function onNewRecycledMaterial triggered for material:", event.params.materialId);
+
     const materialData = event.data?.data();
     if (!materialData) {
-      logger.info("No data associated with the event");
+      logger.info("No data associated with the event for onNewRecycledMaterial.");
       return;
     }
 
     const materialType = materialData.type;
     const recyclerId = materialData.recyclerId;
 
+    if (!recyclerId) {
+      logger.error("Recycler ID is missing from the new material document.");
+      return;
+    }
+
     // Get recycler's profile to get their plant name
     const recyclerDoc = await db.collection("users").doc(recyclerId).get();
+    if (!recyclerDoc.exists) {
+        logger.error(`Could not find recycler profile for ID: ${recyclerId}`);
+        return;
+    }
     const recyclerProfile = recyclerDoc.data();
     const recyclerName = recyclerProfile?.plantName || recyclerProfile?.displayName || "A recycler";
 
@@ -137,30 +148,34 @@ export const onNewRecycledMaterial = onDocumentCreated(
 
     // Get all industrialists
     try {
+      logger.info("Querying for all users with role 'Industrialist'.");
       const industrialistsSnapshot = await db.collection("users").where("role", "==", "Industrialist").get();
+      
       if (industrialistsSnapshot.empty) {
         logger.info("No industrialists found to notify.");
         return;
       }
+      logger.info(`Found ${industrialistsSnapshot.size} industrialist(s) to notify.`);
 
       const batch = db.batch();
       industrialistsSnapshot.forEach(doc => {
         const industrialistId = doc.id;
-        const notificationRef = db.collection("notifications").doc();
+        logger.info(`Preparing notification for industrialist: ${industrialistId}`);
+        const notificationRef = db.collection("notifications").doc(); // Auto-generate ID
         batch.set(notificationRef, {
           userId: industrialistId,
           message: message,
           read: false,
           createdAt: FieldValue.serverTimestamp(),
-          link: "/dashboard" // Or a link to a marketplace page
+          link: "/dashboard/my-inventory" // A more specific link could be better in the future
         });
       });
 
       await batch.commit();
-      logger.info(`Notifications sent to ${industrialistsSnapshot.size} industrialists.`);
+      logger.info(`Batch committed. Notifications sent to ${industrialistsSnapshot.size} industrialists.`);
 
     } catch (error) {
-      logger.error("Error sending notifications to industrialists:", error);
+      logger.error("Error querying for industrialists or committing batch:", error);
     }
   }
 );
