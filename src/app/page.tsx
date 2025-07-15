@@ -151,9 +151,9 @@ export default function HomePage() {
             </div>
             <div>
               <img
-                src="https://placehold.co/600x400.png"
-                alt="EcoNexus Platform Screenshot"
-                data-ai-hint="recycling factory"
+                src="https://images.unsplash.com/photo-1594883988630-f56a634125b4?q=80&w=600&h=400&fit=crop&crop=entropy"
+                alt="Hands holding different types of recyclable materials like plastic bottles and cardboard"
+                data-ai-hint="recycling materials"
                 className="rounded-lg shadow-xl"
               />
             </div>
