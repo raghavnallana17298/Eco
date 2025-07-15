@@ -151,11 +151,10 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <Image
-                src="https://images.unsplash.com/photo-1594883988630-f56a634125b4?q=80&w=600&h=400&fit=crop&crop=entropy"
+              <img
+                src="https://placehold.co/600x400.png"
                 alt="Hands holding different types of recyclable materials like plastic bottles and cardboard"
-                width={600}
-                height={400}
+                data-ai-hint="recycling materials"
                 className="rounded-lg shadow-xl"
               />
             </div>
