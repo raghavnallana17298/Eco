@@ -253,7 +253,7 @@ export function RecyclerView() {
 
   return (
     <Tabs defaultValue="incoming-waste">
-      <TabsList className="grid w-full grid-cols-4 md:w-[800px]">
+      <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 md:w-[800px] h-auto md:h-10">
         <TabsTrigger value="incoming-waste">Incoming Waste</TabsTrigger>
         <TabsTrigger value="my-inventory">My Inventory</TabsTrigger>
         <TabsTrigger value="history">History</TabsTrigger>

@@ -176,8 +176,8 @@ export function IndustrialistView() {
   }
 
   return (
-    <Tabs defaultValue="new-request">
-      <TabsList className="grid w-full grid-cols-4 md:w-[800px]">
+    <Tabs defaultValue="new-request" className="w-full">
+      <TabsList className="grid w-full grid-cols-1 md:grid-cols-4 md:w-[800px] h-auto md:h-10">
         <TabsTrigger value="new-request">New Request</TabsTrigger>
         <TabsTrigger value="my-requests">My Requests</TabsTrigger>
         <TabsTrigger value="find-recyclers">Find Recyclers</TabsTrigger>
