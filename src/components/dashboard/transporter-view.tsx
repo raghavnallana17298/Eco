@@ -1,61 +1,50 @@
+
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-
-const mockJobs = [
-    { id: 'TJ001', from: 'MetalWorks Inc.', to: 'GreenRecycle', type: 'Scrap Metal', distance: 5.2, status: 'Pending' },
-    { id: 'TJ002', from: 'Printify Co.', to: 'EcoPlanet', type: 'Paper', distance: 8.1, status: 'Pending' },
-    { id: 'TJ003', from: 'FoodPack', to: 'GreenRecycle', type: 'Plastic Bottles', distance: 15.7, status: 'Accepted' },
-    { id: 'TJ004', from: 'BuildRight', to: 'Re-Source Co.', type: 'Concrete', distance: 22.0, status: 'Pending' },
-];
-
+import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import type { UserProfile } from "@/lib/types";
+import { Loader2, Truck } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
+import { TransporterCard } from "../transporter-card";
 
 export function TransporterView() {
+    const [jobs, setJobs] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const { toast } = useToast();
+
+    // In a real app, you would fetch jobs assigned to the transporter
+    // For now, we keep this part simple as the core request was about viewing transporters
+    useEffect(() => {
+        // Mock fetching jobs for the logged-in transporter
+        setLoading(false);
+    }, []);
+
+    if (loading) {
+        return (
+             <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+        )
+    }
+
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Available Transport Jobs</CardTitle>
-                <CardDescription>These are transport jobs available for you to accept.</CardDescription>
+                <CardTitle>My Transport Jobs</CardTitle>
+                <CardDescription>These are transport jobs that you have accepted.</CardDescription>
             </CardHeader>
             <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Job ID</TableHead>
-                            <TableHead>Pickup</TableHead>
-                            <TableHead>Dropoff</TableHead>
-                            <TableHead>Waste Type</TableHead>
-                            <TableHead>Distance (km)</TableHead>
-                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {mockJobs.map((job) => (
-                            <TableRow key={job.id}>
-                                <TableCell className="font-medium">{job.id}</TableCell>
-                                <TableCell>{job.from}</TableCell>
-                                <TableCell>{job.to}</TableCell>
-                                <TableCell>{job.type}</TableCell>
-                                <TableCell>{job.distance}</TableCell>
-                                <TableCell>
-                                    <Badge variant={job.status === 'Pending' ? 'outline' : 'default'} className="capitalize">{job.status}</Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    {job.status === 'Pending' && (
-                                        <Button size="sm">Accept Job</Button>
-                                    )}
-                                    {job.status === 'Accepted' && (
-                                         <Button variant="secondary" size="sm">View Details</Button>
-                                    )}
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                <Alert variant="default">
+                    <Truck className="h-4 w-4" />
+                    <AlertTitle>No Jobs Yet</AlertTitle>
+                    <AlertDescription>
+                        You have not accepted any transport jobs. Accepted jobs will appear here.
+                    </AlertDescription>
+              </Alert>
             </CardContent>
         </Card>
     );
