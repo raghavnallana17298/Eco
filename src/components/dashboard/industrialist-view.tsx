@@ -57,7 +57,7 @@ export function IndustrialistView() {
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("role", "==", role));
       const querySnapshot = await getDocs(q);
-      const usersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+      const usersData = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
       setter(usersData);
     } catch (error) {
       console.error(`Error fetching ${role}s:`, error);

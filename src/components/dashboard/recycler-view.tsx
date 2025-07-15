@@ -149,7 +149,7 @@ export function RecyclerView() {
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("role", "==", "Transporter"));
         const querySnapshot = await getDocs(q);
-        const usersData = querySnapshot.docs.map(doc => doc.data() as UserProfile);
+        const usersData = querySnapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
         setTransporters(usersData);
       } catch (error) {
         console.error("Error fetching transporters:", error);
@@ -492,5 +492,3 @@ export function RecyclerView() {
     </Tabs>
   );
 }
-
-    

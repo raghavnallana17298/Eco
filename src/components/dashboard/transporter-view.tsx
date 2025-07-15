@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import type { WasteRequest } from "@/lib/types";
-import { Loader2, Truck, Search } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -32,7 +32,6 @@ export function TransporterView() {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-            // No client-side sort needed as there's no orderBy in the query
             setAvailableJobs(jobsData);
             setIsFetchingAvailable(false);
         }, (error) => {
@@ -52,11 +51,14 @@ export function TransporterView() {
         }
         setIsFetchingMine(true);
         const requestsRef = collection(db, "wasteRequests");
-        const q = query(requestsRef, where("transportedById", "==", user.uid));
+        const q = query(requestsRef, 
+            where("transportedById", "==", user.uid),
+            where("status", "in", ["in-transit", "completed"])
+        );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
-            // No client-side sort needed as there's no orderBy in the query
+            jobsData.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
             setMyJobs(jobsData);
             setIsFetchingMine(false);
         }, (error) => {
@@ -131,25 +133,24 @@ export function TransporterView() {
                             <TableHead>From (Industrialist)</TableHead>
                             <TableHead>To (Recycler)</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Action</TableHead>
+                            {showAcceptButton && <TableHead className="text-right">Action</TableHead>}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {jobs.map((job) => (
                             <TableRow key={job.id}>
-                                <TableCell>{job.updatedAt ? new Date(job.updatedAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
+                                <TableCell>{job.updatedAt ? new Date(job.updatedAt.seconds * 1000).toLocaleDateString() : (job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 'N/A')}</TableCell>
                                 <TableCell>{job.type}</TableCell>
                                 <TableCell>{job.industrialistLocation}</TableCell>
                                 <TableCell>{job.recyclerName}</TableCell>
                                 <TableCell><Badge variant={statusVariant(job.status)} className="capitalize">{job.status}</Badge></TableCell>
-                                <TableCell className="text-right">
-                                    {showAcceptButton && job.status === 'accepted' && (
+                                {showAcceptButton && (
+                                    <TableCell className="text-right">
                                         <Button variant="outline" size="sm" onClick={() => handleAcceptJob(job.id)}>
                                             Accept Job
                                         </Button>
-                                    )}
-                                    {!showAcceptButton && <Button variant="ghost" size="sm" disabled>Details</Button>}
-                                </TableCell>
+                                    </TableCell>
+                                )}
                             </TableRow>
                         ))}
                     </TableBody>
@@ -179,10 +180,10 @@ export function TransporterView() {
                 <Card>
                     <CardHeader>
                         <CardTitle>My Transport Jobs</CardTitle>
-                        <CardDescription>These are transport jobs that you have accepted.</CardDescription>
+                        <CardDescription>These are transport jobs that you have accepted or completed.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        {renderJobsTable(myJobs, isFetchingMine, "You have no active jobs", "Accept a job from the 'Available Jobs' tab to get started.")}
+                        {renderJobsTable(myJobs, isFetchingMine, "You have no active or completed jobs", "Accept a job from the 'Available Jobs' tab to get started.")}
                     </CardContent>
                 </Card>
             </TabsContent>
