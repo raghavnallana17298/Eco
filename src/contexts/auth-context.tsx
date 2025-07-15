@@ -28,65 +28,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const initializeAuth = async () => {
-        // This makes sure we wait for any redirect to complete before doing anything else.
-        try {
-            const result = await getRedirectResult(auth);
-            if (result) {
-                const user = result.user;
-                const userDocRef = doc(db, 'users', user.uid);
-                const userDoc = await getDoc(userDocRef);
+    const processUser = async (user: User) => {
+        const userDocRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
 
-                if (!userDoc.exists()) {
-                    // This is a new Google Sign-In user
-                    const newUserProfile: UserProfile = {
-                        uid: user.uid,
-                        email: user.email,
-                        displayName: user.displayName,
-                        role: 'Industrialist', // Default role for new Google users
-                        location: '',
-                    };
-                    await setDoc(userDocRef, newUserProfile);
-                }
-            }
-        } catch (error) {
-            console.error("Error processing redirect result:", error);
+        if (userDoc.exists()) {
+            setUserProfile(userDoc.data() as UserProfile);
+        } else {
+            // This is a new user, likely from Google Sign-In, whose doc doesn't exist yet.
+            // Let's create it.
+            console.log("User document does not exist, creating new one for Google user.");
+            const newUserProfile: UserProfile = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                role: 'Industrialist', // Default role for new Google users
+                location: '',
+            };
+            await setDoc(userDocRef, newUserProfile);
+            setUserProfile(newUserProfile);
         }
-
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                setUser(user);
-                const userDocRef = doc(db, 'users', user.uid);
-                try {
-                    const userDoc = await getDoc(userDocRef);
-                    if (userDoc.exists()) {
-                        setUserProfile(userDoc.data() as UserProfile);
-                    } else {
-                        // This case can happen if a user was created in Auth but their Firestore doc failed.
-                        // Or for a Google user whose doc creation was interrupted.
-                        console.warn("User exists in Auth, but not in Firestore. Redirecting to login.");
-                        await firebaseSignOut(auth); // Log them out to prevent inconsistent state
-                    }
-                } catch (e) {
-                    console.error("Error fetching user document:", e);
-                    setUserProfile(null);
-                }
-            } else {
-                setUser(null);
-                setUserProfile(null);
-            }
-            setLoading(false);
-        });
-
-        return unsubscribe;
     };
 
-    const unsubscribePromise = initializeAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            setUser(user);
+            await processUser(user);
+        } else {
+            setUser(null);
+            setUserProfile(null);
+        }
+        setLoading(false);
+    });
 
-    return () => {
-        unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
-    };
+    // Separately handle the redirect result to avoid race conditions
+    getRedirectResult(auth).catch(error => {
+        console.error("Error processing redirect result:", error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
 }, []);
+
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
@@ -99,22 +82,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       const user = result.user;
       
-      const newUserProfile: Partial<UserProfile> = {
+      const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
         displayName: name,
         role,
         location: '',
+        ...(role === 'Recycler' && { materials: [] }),
+        ...(role === 'Transporter' && { vehicleTypes: [] }),
       };
-
-      if (role === 'Recycler') {
-        newUserProfile.materials = [];
-      } else if (role === 'Transporter') {
-        newUserProfile.vehicleTypes = [];
-      }
       
       await setDoc(doc(db, 'users', user.uid), newUserProfile);
-      setUserProfile(newUserProfile as UserProfile);
+      setUserProfile(newUserProfile);
 
     } catch (error) {
       console.error("Error signing up:", error);
@@ -137,13 +116,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("You must be logged in to update your profile.");
     }
     
-    const dataToUpdate: Partial<UserProfile> = Object.entries(data).reduce((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key as keyof UserProfile] = value;
-      }
-      return acc;
+    // Filter out any undefined values to prevent Firestore errors
+    const dataToUpdate = Object.entries(data).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+            acc[key as keyof UserProfile] = value;
+        }
+        return acc;
     }, {} as Partial<UserProfile>);
-
 
     if (Object.keys(dataToUpdate).length === 0) {
       return; 
