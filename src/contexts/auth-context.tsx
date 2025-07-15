@@ -5,9 +5,6 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { 
   onAuthStateChanged, 
   User, 
-  GoogleAuthProvider, 
-  signInWithRedirect, 
-  getRedirectResult, 
   signOut as firebaseSignOut, 
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
@@ -16,7 +13,7 @@ import {
   setPersistence 
 } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import type { UserProfile, UserRole } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
@@ -24,7 +21,6 @@ interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
   signUpWithEmail: (name: string, email: string, pass: string, role: UserRole) => Promise<void>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -40,26 +36,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setLoading(true);
-      if (user) {
-        setUser(user);
-        const userDocRef = doc(db, 'users', user.uid);
+      if (currentUser) {
+        const userDocRef = doc(db, 'users', currentUser.uid);
         const userDoc = await getDoc(userDocRef);
+
         if (userDoc.exists()) {
           setUserProfile(userDoc.data() as UserProfile);
-        } else {
-          // This case handles a first-time sign-in where the user exists in Auth but not Firestore.
-          // This is common for Google Sign-In on a fresh account.
-          // The profile data will be created by the login functions (getRedirectResult or signUp).
-          // We set a temporary minimal profile to avoid errors.
-          setUserProfile({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            role: 'Industrialist', // Default role
-          });
         }
+        // If the doc doesn't exist, it will be created during signup.
+        // For existing auth users without a doc, they might need to re-authenticate or be handled.
+        
+        setUser(currentUser);
       } else {
         setUser(null);
         setUserProfile(null);
@@ -67,67 +56,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(false);
     });
 
-    // Handle the redirect result from Google Sign-In
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result) {
-          setLoading(true);
-          const user = result.user;
-          const userDocRef = doc(db, "users", user.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (!userDoc.exists()) {
-            // This is a new user via Google Sign-In, create their profile.
-            const newUserProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              role: 'Industrialist', // Default role for Google Sign-In
-              location: '',
-            };
-            await setDoc(userDocRef, newUserProfile);
-            setUserProfile(newUserProfile);
-            setUser(user);
-          }
-          setLoading(false);
-        }
-      })
-      .catch((error) => {
-        console.error("Error processing redirect result:", error);
-        setLoading(false);
-      });
-
     return () => unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    await setPersistence(auth, browserLocalPersistence);
-    signInWithRedirect(auth, provider);
-  };
-
   const signUpWithEmail = async (name: string, email: string, pass: string, role: UserRole) => {
+    await setPersistence(auth, browserLocalPersistence);
     const result = await createUserWithEmailAndPassword(auth, email, pass);
-    const user = result.user;
+    const newUser = result.user;
     
-    // Explicitly check role and build the profile object
-    const newUserProfile: Partial<UserProfile> = {
-      uid: user.uid,
-      email: user.email,
+    await updateProfile(newUser, { displayName: name });
+    
+    const newUserProfile: UserProfile = {
+      uid: newUser.uid,
+      email: newUser.email,
       displayName: name,
-      role,
+      role: role,
       location: '',
+      ...(role === 'Recycler' && { materials: [] }),
+      ...(role === 'Transporter' && { vehicleTypes: [] }),
     };
-    if (role === 'Recycler') {
-      newUserProfile.materials = [];
-    }
-    if (role === 'Transporter') {
-      newUserProfile.vehicleTypes = [];
-    }
     
-    await setDoc(doc(db, 'users', user.uid), newUserProfile);
-    setUserProfile(newUserProfile as UserProfile);
-    setUser(user);
+    await setDoc(doc(db, 'users', newUser.uid), newUserProfile);
+    setUserProfile(newUserProfile);
+    setUser(newUser);
   };
   
   const signInWithEmail = async (email: string, pass: string) => {
@@ -170,7 +121,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     userProfile,
     loading,
-    signInWithGoogle,
     signUpWithEmail,
     signInWithEmail,
     signOut,
