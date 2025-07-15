@@ -153,7 +153,7 @@ export default function HomePage() {
               <img
                 src="https://placehold.co/600x400.png"
                 alt="EcoNexus Platform Screenshot"
-                data-ai-hint="recycling supply chain"
+                data-ai-hint="recycling"
                 className="rounded-lg shadow-xl"
               />
             </div>
@@ -168,7 +168,7 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Econexus. All rights reserved.</p>
           </div>
           <div className="flex gap-4">
-            <Link href="#" className="text-sm text-muted-foreground hover:text-primary">About</Link>
+            <Link href="/about" className="text-sm text-muted-foreground hover:text-primary">About</Link>
             <Link href="#" className="text-sm text-muted-foreground hover:text-primary">Contact</Link>
             <Link href="#" className="text-sm text-muted-foreground hover:text-primary">Privacy Policy</Link>
           </div>
