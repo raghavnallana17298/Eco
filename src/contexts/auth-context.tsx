@@ -48,8 +48,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!userDoc.exists()) {
               newUserProfile.role = 'Industrialist';
               newUserProfile.location = '';
-              newUserProfile.materials = [];
-              newUserProfile.vehicleTypes = [];
           }
 
           await setDoc(userDocRef, newUserProfile, { merge: true });
@@ -97,17 +95,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       const user = result.user;
-      const newUserProfile: UserProfile = {
+      
+      const newUserProfile: Omit<UserProfile, 'materials' | 'vehicleTypes'> & Partial<Pick<UserProfile, 'materials' | 'vehicleTypes'>> = {
         uid: user.uid,
         email: user.email,
         displayName: name,
         role,
         location: '',
-        materials: role === 'Recycler' ? [] : undefined,
-        vehicleTypes: role === 'Transporter' ? [] : undefined,
       };
+
+      if (role === 'Recycler') {
+        newUserProfile.materials = [];
+      } else if (role === 'Transporter') {
+        newUserProfile.vehicleTypes = [];
+      }
+      
       await setDoc(doc(db, 'users', user.uid), newUserProfile);
-      setUserProfile(newUserProfile);
+      setUserProfile(newUserProfile as UserProfile);
+
     } catch (error) {
       console.error("Error signing up:", error);
       throw error;
