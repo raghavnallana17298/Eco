@@ -36,19 +36,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (result) {
           const user = result.user;
           const userDocRef = doc(db, 'users', user.uid);
+          // Use setDoc with merge: true to create or update the document safely.
+          // This avoids the "No document to update" error on the first sign-in.
+          const newUserProfile: Partial<UserProfile> = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+          };
+          // If the user is new, we'll set a default role.
           const userDoc = await getDoc(userDocRef);
           if (!userDoc.exists()) {
-            const newUserProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email,
-              displayName: user.displayName,
-              role: 'Industrialist', 
-              location: '',
-              materials: [],
-              vehicleTypes: [],
-            };
-            await setDoc(userDocRef, newUserProfile);
+              newUserProfile.role = 'Industrialist';
+              newUserProfile.location = '';
+              newUserProfile.materials = [];
+              newUserProfile.vehicleTypes = [];
           }
+
+          await setDoc(userDocRef, newUserProfile, { merge: true });
         }
       } catch (error) {
         console.error("Error processing redirect result:", error);
