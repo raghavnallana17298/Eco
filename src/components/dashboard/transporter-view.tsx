@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, getDoc } from "firebase/firestore";
 import type { WasteRequest } from "@/lib/types";
 import { Loader2, Search } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -74,12 +74,12 @@ export function TransporterView() {
         const requestRef = doc(db, "wasteRequests", requestId);
         try {
             // Check if job is still available
-            const requestDoc = await getDocs(query(collection(db, "wasteRequests"), where("id", "==", requestId), where("status", "==", "accepted")));
-            if(requestDoc.empty) {
+            const requestDoc = await getDoc(requestRef);
+            if (!requestDoc.exists() || requestDoc.data()?.status !== 'accepted') {
                 toast({
                     variant: "destructive",
                     title: "Job Taken",
-                    description: "This job has already been accepted by another transporter.",
+                    description: "This job has already been accepted by another transporter or is no longer available.",
                 });
                 return;
             }

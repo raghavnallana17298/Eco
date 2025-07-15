@@ -29,66 +29,69 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      await setPersistence(auth, browserLocalPersistence);
+        // This makes sure we wait for any redirect to complete before doing anything else.
+        try {
+            const result = await getRedirectResult(auth);
+            if (result) {
+                const user = result.user;
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
 
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          const user = result.user;
-          const userDocRef = doc(db, 'users', user.uid);
-          // Use setDoc with merge: true to create or update the document safely.
-          // This avoids the "No document to update" error on the first sign-in.
-          const newUserProfile: Partial<UserProfile> = {
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-          };
-          // If the user is new, we'll set a default role.
-          const userDoc = await getDoc(userDocRef);
-          if (!userDoc.exists()) {
-              newUserProfile.role = 'Industrialist';
-              newUserProfile.location = '';
-          }
-
-          await setDoc(userDocRef, newUserProfile, { merge: true });
+                if (!userDoc.exists()) {
+                    // This is a new Google Sign-In user
+                    const newUserProfile: UserProfile = {
+                        uid: user.uid,
+                        email: user.email,
+                        displayName: user.displayName,
+                        role: 'Industrialist', // Default role for new Google users
+                        location: '',
+                    };
+                    await setDoc(userDocRef, newUserProfile);
+                }
+            }
+        } catch (error) {
+            console.error("Error processing redirect result:", error);
         }
-      } catch (error) {
-        console.error("Error processing redirect result:", error);
-      }
 
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          setUser(user);
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            setUserProfile(userDoc.data() as UserProfile);
-          }
-        } else {
-          setUser(null);
-          setUserProfile(null);
-        }
-        setLoading(false);
-      });
-      
-      return unsubscribe;
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                setUser(user);
+                const userDocRef = doc(db, 'users', user.uid);
+                try {
+                    const userDoc = await getDoc(userDocRef);
+                    if (userDoc.exists()) {
+                        setUserProfile(userDoc.data() as UserProfile);
+                    } else {
+                        // This case can happen if a user was created in Auth but their Firestore doc failed.
+                        // Or for a Google user whose doc creation was interrupted.
+                        console.warn("User exists in Auth, but not in Firestore. Redirecting to login.");
+                        await firebaseSignOut(auth); // Log them out to prevent inconsistent state
+                    }
+                } catch (e) {
+                    console.error("Error fetching user document:", e);
+                    setUserProfile(null);
+                }
+            } else {
+                setUser(null);
+                setUserProfile(null);
+            }
+            setLoading(false);
+        });
+
+        return unsubscribe;
     };
 
     const unsubscribePromise = initializeAuth();
 
     return () => {
-      unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
+        unsubscribePromise.then(unsubscribe => unsubscribe && unsubscribe());
     };
-  }, []);
+}, []);
 
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider();
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (error) {
-      console.error("Error during Google sign-in redirect:", error);
-      throw error;
-    }
+    await setPersistence(auth, browserLocalPersistence);
+    await signInWithRedirect(auth, provider);
   };
 
   const signUpWithEmail = async (name: string, email: string, pass: string, role: UserRole) => {
@@ -96,7 +99,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await createUserWithEmailAndPassword(auth, email, pass);
       const user = result.user;
       
-      const newUserProfile: Omit<UserProfile, 'materials' | 'vehicleTypes'> & Partial<Pick<UserProfile, 'materials' | 'vehicleTypes'>> = {
+      const newUserProfile: Partial<UserProfile> = {
         uid: user.uid,
         email: user.email,
         displayName: name,
@@ -121,6 +124,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   
   const signInWithEmail = async (email: string, pass: string) => {
     try {
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithEmailAndPassword(auth, email, pass);
     } catch (error) {
       console.error("Error signing in:", error);
@@ -133,7 +137,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("You must be logged in to update your profile.");
     }
     
-    // Create a new object with only the defined values from the input
     const dataToUpdate: Partial<UserProfile> = Object.entries(data).reduce((acc, [key, value]) => {
       if (value !== undefined) {
         acc[key as keyof UserProfile] = value;
@@ -143,11 +146,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 
     if (Object.keys(dataToUpdate).length === 0) {
-      return; // No valid fields to update
+      return; 
     }
 
     try {
-      if (data.displayName) {
+      if (data.displayName && data.displayName !== user.displayName) {
         await updateProfile(user, { displayName: data.displayName });
       }
 
