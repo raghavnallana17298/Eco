@@ -32,6 +32,7 @@ export function TransporterView() {
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
+            jobsData.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
             setAvailableJobs(jobsData);
             setIsFetchingAvailable(false);
         }, (error) => {
@@ -51,10 +52,7 @@ export function TransporterView() {
         }
         setIsFetchingMine(true);
         const requestsRef = collection(db, "wasteRequests");
-        const q = query(requestsRef, 
-            where("transportedById", "==", user.uid),
-            where("status", "in", ["in-transit", "completed"])
-        );
+        const q = query(requestsRef, where("transportedById", "==", user.uid));
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WasteRequest));
@@ -139,7 +137,7 @@ export function TransporterView() {
                     <TableBody>
                         {jobs.map((job) => (
                             <TableRow key={job.id}>
-                                <TableCell>{job.updatedAt ? new Date(job.updatedAt.seconds * 1000).toLocaleDateString() : (job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 'N/A')}</TableCell>
+                                <TableCell>{job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</TableCell>
                                 <TableCell>{job.type}</TableCell>
                                 <TableCell>{job.industrialistLocation}</TableCell>
                                 <TableCell>{job.recyclerName}</TableCell>
@@ -190,3 +188,5 @@ export function TransporterView() {
         </Tabs>
     );
 }
+
+    
