@@ -8,7 +8,6 @@ import { Package, Recycle, Truck, CheckCircle, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
@@ -151,11 +150,10 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <Image
-                src="https://images.unsplash.com/photo-1593393521880-6924611b714f"
+              <img
+                src="https://placehold.co/600x400.png"
                 alt="Hands holding a globe with recycling symbols"
-                width={600}
-                height={400}
+                data-ai-hint="earth recycling"
                 className="rounded-lg shadow-xl"
               />
             </div>
