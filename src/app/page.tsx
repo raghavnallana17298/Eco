@@ -151,10 +151,11 @@ export default function HomePage() {
               </ul>
             </div>
             <div>
-              <img
-                src="https://placehold.co/600x400.png"
+              <Image
+                src="https://images.unsplash.com/photo-1593393521880-6924611b714f"
                 alt="Hands holding a globe with recycling symbols"
-                data-ai-hint="earth recycling"
+                width={600}
+                height={400}
                 className="rounded-lg shadow-xl"
               />
             </div>
