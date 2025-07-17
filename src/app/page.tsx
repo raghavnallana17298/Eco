@@ -153,8 +153,8 @@ export default function HomePage() {
             <div>
               <img
                 src="https://placehold.co/600x400.png"
-                alt="Hands holding different types of recyclable materials like plastic bottles and cardboard"
-                data-ai-hint="recycling materials"
+                alt="Hands holding a globe with recycling symbols"
+                data-ai-hint="earth recycling"
                 className="rounded-lg shadow-xl"
               />
             </div>
