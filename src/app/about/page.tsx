@@ -45,8 +45,8 @@ export default function AboutPage() {
               <div>
                 <img
                   src="https://placehold.co/600x500.png"
-                  alt="Team working together"
-                  data-ai-hint="sustainability team"
+                  alt="Globe with recycling symbol"
+                  data-ai-hint="earth recycling"
                   className="rounded-lg shadow-xl"
                 />
               </div>
